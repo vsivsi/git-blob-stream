@@ -16,7 +16,7 @@ describe('Git blob streams', function () {
     var hashCalled = false;
     var sha1Cb = function (hash) {
       hashCalled = true;
-      assert(hash === '327b85ca3f29975db856a0477278671456ff908b');
+      assert(Buffer.compare(hash, new Buffer('327b85ca3f29975db856a0477278671456ff908b','hex')) === 0);
     };
     var input = gitBlobStream.blobWriter({type: 'blob', size: msg.length, hashCallback: sha1Cb});
     var output = input.pipe(gitBlobStream.blobReader());
@@ -41,7 +41,7 @@ describe('Git blob streams', function () {
       var hashCalled = false;
       var sha1Cb = function (hash) {
         hashCalled = true;
-        assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
+        assert(Buffer.compare(hash, new Buffer('Zo4pwtt36d/nyRRwC+ffckgHxkg=','base64')) === 0);
       };
       var input = fs.createReadStream(ipsum);
       var output = fs.createWriteStream(ipsum + ".blob");
@@ -59,7 +59,7 @@ describe('Git blob streams', function () {
 
     it('should work as a hash calculator', function (done) {
       var input = fs.createReadStream(ipsum);
-      var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121 });
+      var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashFormat: 'hex' });
       var pipeline = input.pipe(writer);
       var hash = '';
       pipeline.on('data', function (chunk) {

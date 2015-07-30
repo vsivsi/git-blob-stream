@@ -46,14 +46,15 @@ var input = fs.createReadStream("filename");
 var output = fs.createWriteStream("filename.blob");
 
 var hashFunc = function (hash) {
-  // hash is a hexidecimal SHA1 sum string, just like git uses
+  // hash is a buffer containing the 20 byte SHA1 sum, or a string if
+  // a non-default hoshFormat is specified
 }
 
 // All options are manditory!
 var xformStream = gbs.blobWriter({
   size: fs.statSync("filename").size,  // Required!
   type: "blob",                        // Default, or "tree" or "commit"
-  hashFormat: 'hex'                    // Default, or 'base64' or 'buffer'
+  hashFormat: 'buffer'                 // Default, or 'hex' or 'base64'
   hashCallback: hashFunc,              // Get the SHA1 hash, if omitted
                                        // output stream contains the hash
 });

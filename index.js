@@ -44,8 +44,9 @@ var blobWriter = function (options) {
       console.error('Invalid hashFormat option passed to blobWriter');
       return null;
     }
-  } else {
-    options.hashFormat = 'hex';
+    if (options.hashFormat === 'buffer') {
+      delete options.hashFormat;
+    }
   }
   var sha1 = crypto.createHash('sha1');
   var transform = through2(
@@ -57,12 +58,7 @@ var blobWriter = function (options) {
       cb();
     },
     function (cb) {
-      var hash;
-      if (options.hashFormat === 'buffer') {
-        hash = sha1.digest();
-      } else {
-        hash = sha1.digest(options.hashFormat);
-      }
+      var hash = sha1.digest(options.hashFormat);
       if (options.hashCallback) {
         options.hashCallback(hash);
       } else {

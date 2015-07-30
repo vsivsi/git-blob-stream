@@ -1,6 +1,6 @@
 ##### .NEXT
 
-* SHA1 hash output 'binary' is now 'buffer', returns a buffer. 'hex' and 'base64' now return strings
+* SHA1 hash output 'binary' is now 'buffer', returns a buffer and is the default. 'hex' and 'base64' now return strings.
 
 ##### 0.0.4
 
