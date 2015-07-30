@@ -10,7 +10,7 @@ var assert = require('assert'),
     gitBlobStream = require('../'),
     ipsum = __dirname + '/fixtures/ipsum.txt';
 
-describe('test', function () {
+describe('Git blob streams', function () {
   it('should pass data through a pipeline correctly', function (done) {
     var msg = "This is the message text!\n";
     var hashCalled = false;
