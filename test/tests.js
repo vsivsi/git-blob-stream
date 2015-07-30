@@ -36,78 +36,82 @@ describe('Git blob streams', function () {
     });
   });
 
-  it('should work as a file encoder', function (done) {
-    var hashCalled = false;
-    var sha1Cb = function (hash) {
-      hashCalled = true;
-      assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
-    };
-    var input = fs.createReadStream(ipsum);
-    var output = fs.createWriteStream(ipsum + ".blob");
-    var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashCallback: sha1Cb});
-    output.on('close', function () {
-      assert(hashCalled);
-      done();
+  describe('blobWriter', function () {
+    it('should work as a file encoder', function (done) {
+      var hashCalled = false;
+      var sha1Cb = function (hash) {
+        hashCalled = true;
+        assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
+      };
+      var input = fs.createReadStream(ipsum);
+      var output = fs.createWriteStream(ipsum + ".blob");
+      var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashCallback: sha1Cb});
+      output.on('close', function () {
+        assert(hashCalled);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+      input.pipe(writer).pipe(output);
     });
-    output.on('error', function (e) {
-      console.warn("Error in pipeline", e);
-      assert(false);
+
+    it('should work as a hash calculator', function (done) {
+      var input = fs.createReadStream(ipsum);
+      var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashFormat: 'hex'});
+      var pipeline = input.pipe(writer);
+      var hash = '';
+      pipeline.on('data', function (chunk) {
+        hash = hash + chunk.toString();
+      });
+      pipeline.on('end', function (chunk) {
+        assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
+        done();
+      });
+      pipeline.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
     });
-    input.pipe(writer).pipe(output);
   });
 
-  it('should work as a hash calculator', function (done) {
-    var input = fs.createReadStream(ipsum);
-    var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashFormat: 'hex'});
-    var pipeline = input.pipe(writer);
-    var hash = '';
-    pipeline.on('data', function (chunk) {
-      hash = hash + chunk.toString();
+  describe('blobReader', function () {
+    it('should work as a file decoder', function (done) {
+      var input = fs.createReadStream(ipsum + ".blob");
+      var reader = gitBlobStream.blobReader();
+      var sha1 = crypto.createHash('sha1');
+      reader.on('data', function (chunk) {
+        sha1.update(chunk);
+      });
+      reader.on('end', function () {
+        assert(sha1.digest('hex') === '0864e5f892af90df553f1cddc14bf6d00215e3d2');
+        done();
+      });
+      reader.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+      input.pipe(reader);
     });
-    pipeline.on('end', function (chunk) {
-      assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
-      done();
-    });
-    pipeline.on('error', function (e) {
-      console.warn("Error in pipeline", e);
-      assert(false);
-    });
-  });
 
-  it('should work as a file decoder', function (done) {
-    var input = fs.createReadStream(ipsum + ".blob");
-    var reader = gitBlobStream.blobReader();
-    var sha1 = crypto.createHash('sha1');
-    reader.on('data', function (chunk) {
-      sha1.update(chunk);
+    it('should work as a file decoder with retained header', function (done) {
+      var input = fs.createReadStream(ipsum + ".blob");
+      var reader = gitBlobStream.blobReader({ header: true });
+      var sha1 = crypto.createHash('sha1');
+      reader.on('data', function (chunk) {
+        sha1.update(chunk);
+      });
+      reader.on('end', function () {
+        assert(sha1.digest('hex') === '668e29c2db77e9dfe7c914700be7df724807c648');
+        done();
+      });
+      reader.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+      input.pipe(reader);
     });
-    reader.on('end', function () {
-      assert(sha1.digest('hex') === '0864e5f892af90df553f1cddc14bf6d00215e3d2');
-      done();
-    });
-    reader.on('error', function (e) {
-      console.warn("Error in pipeline", e);
-      assert(false);
-    });
-    input.pipe(reader);
-  });
-
-  it('should work as a file decoder with retained header', function (done) {
-    var input = fs.createReadStream(ipsum + ".blob");
-    var reader = gitBlobStream.blobReader({ header: true });
-    var sha1 = crypto.createHash('sha1');
-    reader.on('data', function (chunk) {
-      sha1.update(chunk);
-    });
-    reader.on('end', function () {
-      assert(sha1.digest('hex') === '668e29c2db77e9dfe7c914700be7df724807c648');
-      done();
-    });
-    reader.on('error', function (e) {
-      console.warn("Error in pipeline", e);
-      assert(false);
-    });
-    input.pipe(reader);
   });
 
   after(function (done) {
