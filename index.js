@@ -9,33 +9,62 @@ var zlib = require('zlib'),
     through2 = require('through2'),
     duplexer2 = require('duplexer2');
 
+var validHashOutputFormats = { 'hex': true, 'base64': true, 'binary': true };
+var validBlobTypes = { 'blob': true, 'tree': true, 'commit': true, 'tag': true };
+
+
 var blobWriter = function (options) {
   if (!options.size || (typeof options.size !== 'number')) {
     console.error('Invalid size option passed to blobWriter');
     return null;
   }
-  if (!options.type || (typeof options.type !== 'string')) {
-    console.error('Invalid type option passed to blobWriter');
-    return null;
+  if (options.type) {
+    if ((typeof options.type !== 'string') ||
+        !(options.type in validBlobTypes)) {
+      console.error('Invalid type option passed to blobWriter');
+      return null;
+    }
+  } else {
+    options.type = 'blob';
   }
-  if (!options.hashCallback || (typeof options.hashCallback !== 'function')) {
+  if (options.hashCallback && (typeof options.hashCallback !== 'function')) {
     console.error('Invalid hashCallback option passed to blobWriter');
     return null;
+  }
+  if (options.hashFormat) {
+    if (typeof options.hashFormat !== 'string' ||
+        !(options.hashFormat in validHashOutputFormats)) {
+      console.error('Invalid hashFormat option passed to blobWriter');
+      return null;
+    }
+  } else {
+    options.hashFormat = 'hex';
   }
   var sha1 = crypto.createHash('sha1');
   var transform = through2(
     function (chunk, enc, cb) {
       sha1.update(chunk, enc);
-      this.push(chunk);
+      if (options.hashCallback) {
+        this.push(chunk);
+      }
       cb();
     },
     function (cb) {
-      options.hashCallback(sha1.digest('hex'));
+      if (options.hashCallback) {
+        options.hashCallback(sha1.digest(options.hashFormat));
+      } else {
+        var hash = sha1.digest(options.hashFormat);
+        this.push(new Buffer (hash));
+      }
       cb();
     }
   );
   transform.write(new Buffer(options.type + " " + options.size + "\0"));
-  return duplexer2(transform, transform.pipe(zlib.createDeflate()));
+  if (options.hashCallback) {
+    return duplexer2(transform, transform.pipe(zlib.createDeflate()));
+  } else {
+    return transform;
+  }
 };
 
 var blobReader = function () {

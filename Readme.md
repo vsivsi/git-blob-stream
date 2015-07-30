@@ -48,9 +48,11 @@ var hashFunc = function (hash) {
 
 // All options are manditory!
 var xformStream = gbs.blobWriter({
-  type: "blob",                        // Or perhaps "tree" or "commit"
-  size: fs.statSync("filename").size,  // Gotta have it!
-  hashCallback: hashFunc               // Get the hash back
+  size: fs.statSync("filename").size,  // Required!
+  type: "blob",                        // Default, or "tree" or "commit"
+  hashFormat: 'hex'                    // Default, or 'base64' or 'binary'
+  hashCallback: hashFunc,              // Get the SHA1 hash, if omitted
+                                       // output stream contains the hash
 });
 
 // Write the file. hashCallback will be called when finished

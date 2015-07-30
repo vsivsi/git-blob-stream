@@ -31,6 +31,7 @@ describe('Git blob streams', function () {
       done();
     });
     output.on('error', function (e) {
+      console.warn("Error in pipeline", e);
       assert(false);
     });
   });
@@ -49,9 +50,28 @@ describe('Git blob streams', function () {
       done();
     });
     output.on('error', function (e) {
+      console.warn("Error in pipeline", e);
       assert(false);
     });
     input.pipe(writer).pipe(output);
+  });
+
+  it('should work as a hash calculator', function (done) {
+    var input = fs.createReadStream(ipsum);
+    var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashFormat: 'hex'});
+    var pipeline = input.pipe(writer);
+    var hash = '';
+    pipeline.on('data', function (chunk) {
+      hash = hash + chunk.toString();
+    });
+    pipeline.on('end', function (chunk) {
+      assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
+      done();
+    });
+    pipeline.on('error', function (e) {
+      console.warn("Error in pipeline", e);
+      assert(false);
+    });
   });
 
   it('should work as a file decoder', function (done) {
@@ -67,6 +87,7 @@ describe('Git blob streams', function () {
       done();
     });
     reader.on('error', function (e) {
+      console.warn("Error in pipeline", e);
       assert(false);
     });
     input.pipe(reader);
