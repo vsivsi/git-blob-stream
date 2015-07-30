@@ -15,7 +15,7 @@
   "dependencies": {
     "through2": "^0.6.5",
     "duplexer2": "^0.0.2",
-    "from2": "^2.1.0"
+    "streamifier": "^0.1.1"
   },
   "devDependencies": {
     "mocha": "^2.2.5"

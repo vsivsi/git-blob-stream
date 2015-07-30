@@ -7,7 +7,7 @@
 var zlib = require('zlib'),
     crypto = require('crypto'),
     through2 = require('through2'),
-    from2 = require('from2'),
+    streamifier = require('streamifier'),
     duplexer2 = require('duplexer2');
 
 var validHashOutputFormats = { 'hex': true, 'buffer': true };
@@ -176,20 +176,9 @@ var treeWriter = function (body, options) {
     tbSize += treeBuffers[2*i].length + treeBuffers[2*i+1].length;
   }
   var buff = Buffer.concat(treeBuffers, tbSize);
-  var last = 0;
   options.size = tbSize;
   options.type = 'tree';
-  read = function (size, next) {
-    if (last >= tbSize) {
-      process.nextTick(function () { next(null, null); });
-    } else {
-      var stop = last+size;
-      var sl = buff.slice(last,stop);
-      last = stop;
-      process.nextTick(function () { next(null, sl); });
-    }
-  };
-  return from2(read).pipe(blobWriter(options));
+  return streamifier.createReadStream(buff).pipe(blobWriter(options));
 };
 
 module.exports = exports = {
