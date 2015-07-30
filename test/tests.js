@@ -82,7 +82,6 @@ describe('Git blob streams', function () {
       sha1.update(chunk);
     });
     reader.on('end', function () {
-      fs.unlinkSync(ipsum + ".blob");
       assert(sha1.digest('hex') === '0864e5f892af90df553f1cddc14bf6d00215e3d2');
       done();
     });
@@ -91,5 +90,28 @@ describe('Git blob streams', function () {
       assert(false);
     });
     input.pipe(reader);
+  });
+
+  it('should work as a file decoder with retained header', function (done) {
+    var input = fs.createReadStream(ipsum + ".blob");
+    var reader = gitBlobStream.blobReader({ header: true });
+    var sha1 = crypto.createHash('sha1');
+    reader.on('data', function (chunk) {
+      sha1.update(chunk);
+    });
+    reader.on('end', function () {
+      assert(sha1.digest('hex') === '668e29c2db77e9dfe7c914700be7df724807c648');
+      done();
+    });
+    reader.on('error', function (e) {
+      console.warn("Error in pipeline", e);
+      assert(false);
+    });
+    input.pipe(reader);
+  });
+
+  after(function (done) {
+    fs.unlinkSync(ipsum + ".blob");
+    done();
   });
 });

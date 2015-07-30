@@ -2,8 +2,7 @@
 
 [![Build Status](https://travis-ci.org/vsivsi/git-blob-stream.svg)](https://travis-ci.org/vsivsi/git-blob-stream)
 
-This npm package makes it easy and efficient to read and write Git blob files
-using node.js Stream2 streams.
+This npm package makes it easy and efficient to read and write Git blob files using node.js Stream2 streams. It has no dependencies on command line git or native code git libraries; instead using crypto and compression libraries already built into node.js.
 
 ### Installation
 
@@ -25,8 +24,12 @@ var gbs = require('git-blob-stream');
 var input = fs.createReadStream("filename.blob");
 var output = fs.createWriteStream("filename");
 
+var xformStream = gbs.blobReader({
+  header: false          // Default, blob header retained in output if truthy
+});
+
 // Decode the file...
-input.pipe(gbs.blobReader()).pipe(output);
+input.pipe(xformStream).pipe(output);
 
 output.on('close', function () {
   // All done

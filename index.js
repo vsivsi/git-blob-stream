@@ -12,8 +12,15 @@ var zlib = require('zlib'),
 var validHashOutputFormats = { 'hex': true, 'base64': true, 'binary': true };
 var validBlobTypes = { 'blob': true, 'tree': true, 'commit': true, 'tag': true };
 
-
 var blobWriter = function (options) {
+  if (options) {
+    if (typeof options !== 'object') {
+      console.error('Bad options object passed to blobWriter');
+      return null;
+    }
+  } else {
+    options = {};
+  }
   if (!options.size || (typeof options.size !== 'number')) {
     console.error('Invalid size option passed to blobWriter');
     return null;
@@ -67,8 +74,19 @@ var blobWriter = function (options) {
   }
 };
 
-var blobReader = function () {
+var blobReader = function (options) {
+  if (options) {
+    if (typeof options !== 'object') {
+      console.error('Bad options object passed to blobReader');
+      return null;
+    }
+  } else {
+    options = {};
+  }
   var header = true;
+  if (options.header) {
+    header = false;
+  }
   var inflator = zlib.createInflate();
   var transform = through2(
     function (chunk, enc, cb) {
