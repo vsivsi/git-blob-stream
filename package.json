@@ -1,0 +1,36 @@
+{
+  "author": "Vaughn Iverson",
+  "name": "git-blob-stream",
+  "description": "Node.js Transform streams to convert data to or from git blobs",
+  "main": "index.js",
+  "version": "0.0.1",
+  "keywords": [
+    "git",
+    "blob",
+    "stream"
+  ],
+  "scripts": {
+    "test": "make test"
+  },
+  "dependencies": {
+    "through2": "^0.6.5",
+    "duplexer2": "^0.0.2"
+  },
+  "devDependencies": {
+    "mocha": "^2.2.5"
+  },
+  "optionalDependencies": {},
+  "engines": {
+    "node": "^0.10.36"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/vsivsi/git-blob-stream.git"
+  },
+  "readmeFilename": "Readme.md",
+  "bugs": {
+    "url": "https://github.com/vsivsi/git-blob-stream/issues"
+  },
+  "author": "Vaughn Iverson",
+  "license": "MIT"
+}
