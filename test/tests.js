@@ -17,7 +17,7 @@ describe('Git blob streams', function () {
     var hashCalled = false;
     var sha1Cb = function (hash) {
       hashCalled = true;
-      assert(Buffer.compare(hash, new Buffer('327b85ca3f29975db856a0477278671456ff908b','hex')) === 0);
+      assert(hash.toString('hex') === '327b85ca3f29975db856a0477278671456ff908b');
     };
     var input = gbs.blobWriter({type: 'blob', size: msg.length, hashCallback: sha1Cb});
     var output = input.pipe(gbs.blobReader());
