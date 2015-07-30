@@ -14,6 +14,23 @@ npm install && npm test
 
 ### Usage
 
+##### To read a blob file:
+
+```javascript
+var fs = require('fs');
+var gbs = require('git-blob-stream');
+
+var input = fs.createReadStream("filename.blob");
+var output = fs.createWriteStream("filename");
+
+// Decode the file...
+input.pipe(gbs.blobReader()).pipe(output);
+
+output.on('close', function () {
+  // All done
+});
+```
+
 ##### To write a blob file:
 
 ```javascript
@@ -36,23 +53,6 @@ var xformStream = gbs.blobWriter({
 
 // Write the file. hashCallback will be called when finished
 input.pipe(xformStream).pipe(output);
-
-output.on('close', function () {
-  // All done
-});
-```
-
-##### To read a blob file:
-
-```javascript
-var fs = require('fs');
-var gbs = require('git-blob-stream');
-
-var input = fs.createReadStream("filename.blob");
-var output = fs.createWriteStream("filename");
-
-// Decode the file...
-input.pipe(gbs.blobReader()).pipe(output);
 
 output.on('close', function () {
   // All done
