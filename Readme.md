@@ -43,7 +43,7 @@ var input = fs.createReadStream("filename");
 var output = fs.createWriteStream("filename.blob");
 
 var hashFunc = function (hash) {
-  // has is a hexidecimal SHA1 sum string, just like git uses
+  // hash is a hexidecimal SHA1 sum string, just like git uses
 }
 
 // All options are manditory!
