@@ -42,7 +42,7 @@ describe('Git blob streams', function () {
       var hashCalled = false;
       var sha1Cb = function (hash) {
         hashCalled = true;
-        assert(Buffer.compare(hash, new Buffer('668e29c2db77e9dfe7c914700be7df724807c648','hex')) === 0);
+        assert(hash.toString('hex') === '668e29c2db77e9dfe7c914700be7df724807c648');
       };
       var input = fs.createReadStream(ipsum);
       var output = fs.createWriteStream(ipsum + ".blob");
@@ -67,7 +67,7 @@ describe('Git blob streams', function () {
         hash = Buffer.concat([hash, chunk]);
       });
       pipeline.on('end', function () {
-        assert(Buffer.compare(hash, new Buffer('668e29c2db77e9dfe7c914700be7df724807c648','hex')) === 0);
+        assert(hash.toString('hex') === '668e29c2db77e9dfe7c914700be7df724807c648');
         done();
       });
       pipeline.on('error', function (e) {
