@@ -1,5 +1,7 @@
 ## git-blob-stream
 
+[![Build Status](https://travis-ci.org/vsivsi/git-blob-stream.svg)](https://travis-ci.org/vsivsi/git-blob-stream)
+
 This npm package makes it easy and efficient to read and write Git blob files
 of any type using node.js Stream2 streams.
 
