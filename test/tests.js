@@ -59,14 +59,50 @@ describe('Git blob streams', function () {
 
     it('should work as a hash calculator', function (done) {
       var input = fs.createReadStream(ipsum);
-      var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashFormat: 'hex'});
+      var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121 });
       var pipeline = input.pipe(writer);
       var hash = '';
       pipeline.on('data', function (chunk) {
-        hash = hash + chunk.toString();
+        hash = hash + chunk;
+      });
+      pipeline.on('end', function () {
+        assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
+        done();
+      });
+      pipeline.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+
+    it('should work as a base64 hash calculator', function (done) {
+      var input = fs.createReadStream(ipsum);
+      var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashFormat: 'base64'});
+      var pipeline = input.pipe(writer);
+      var hash = '';
+      pipeline.on('data', function (chunk) {
+        hash = hash + chunk;
       });
       pipeline.on('end', function (chunk) {
-        assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
+        assert(hash === 'Zo4pwtt36d/nyRRwC+ffckgHxkg=');
+        done();
+      });
+      pipeline.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+
+    it('should work as a buffer hash calculator', function (done) {
+      var input = fs.createReadStream(ipsum);
+      var writer = gitBlobStream.blobWriter({type: 'blob', size: 74121, hashFormat: 'buffer'});
+      var pipeline = input.pipe(writer);
+      var hash = new Buffer(0);
+      pipeline.on('data', function (chunk) {
+        hash = Buffer.concat([hash, chunk]);
+      });
+      pipeline.on('end', function () {
+        assert(Buffer.compare(hash, new Buffer('Zo4pwtt36d/nyRRwC+ffckgHxkg=','base64')) === 0);
         done();
       });
       pipeline.on('error', function (e) {

@@ -9,7 +9,7 @@ var zlib = require('zlib'),
     through2 = require('through2'),
     duplexer2 = require('duplexer2');
 
-var validHashOutputFormats = { 'hex': true, 'base64': true, 'binary': true };
+var validHashOutputFormats = { 'hex': true, 'base64': true, 'buffer': true };
 var validBlobTypes = { 'blob': true, 'tree': true, 'commit': true, 'tag': true };
 
 var blobWriter = function (options) {
@@ -57,11 +57,16 @@ var blobWriter = function (options) {
       cb();
     },
     function (cb) {
-      if (options.hashCallback) {
-        options.hashCallback(sha1.digest(options.hashFormat));
+      var hash;
+      if (options.hashFormat === 'buffer') {
+        hash = sha1.digest();
       } else {
-        var hash = sha1.digest(options.hashFormat);
-        this.push(new Buffer (hash));
+        hash = sha1.digest(options.hashFormat);
+      }
+      if (options.hashCallback) {
+        options.hashCallback(hash);
+      } else {
+        this.push(hash);
       }
       cb();
     }

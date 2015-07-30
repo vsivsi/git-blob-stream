@@ -1,3 +1,7 @@
+##### .NEXT
+
+* SHA1 hash output 'binary' is now 'buffer', returns a buffer. 'hex' and 'base64' now return strings
+
 ##### 0.0.4
 
 * `gbs.blobReader()` now supports a single option, `header` if truthy, causes the output stream to retain the git blob header indicating the type and size of the blob.
