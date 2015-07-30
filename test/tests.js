@@ -137,12 +137,12 @@ describe('Git blob streams', function () {
     it('should correctly write a tree blob', function (done) {
       var hashCalled = false;
       var hashFunc = function (hash) {
-        console.log("Hash", hash);
+        assert(hash === 'fc6f4a212a7ce72994a4efa8d8d5b82b2baed22b');
         hashCalled = true;
       };
       var output = fs.createWriteStream(tree);
       var input = gbs.treeWriter({
-        "greeting.txt": { mode: gbs.gitModes.file, hash: '668e29c2db77e9dfe7c914700be7df724807c648' }
+        "greeting.txt": { mode: gbs.gitModes.file, hash: '327b85ca3f29975db856a0477278671456ff908b' }
       }, { hashFormat: 'hex', hashCallback: hashFunc });
       input.pipe(output);
       output.on('close', function () {
@@ -157,7 +157,7 @@ describe('Git blob streams', function () {
   });
 
   after(function (done) {
-    // fs.unlinkSync(tree);
+    fs.unlinkSync(tree);
     fs.unlinkSync(ipsum + ".blob");
     done();
   });
