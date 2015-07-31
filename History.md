@@ -1,7 +1,8 @@
-##### .NEXT
+##### 0.0.5
 
 * SHA1 hash output 'binary' is now 'buffer', returns a buffer and is the default. 'hex' now returns a string.
 * 'base64' removed as a SHA1 hash output... You can always convert a buffer to one.
+* Added `gbs.treeReader()` and `gbs.treeWriter()` for streaming to and from js-git style tree objects
 
 ##### 0.0.4
 

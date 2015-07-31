@@ -156,6 +156,24 @@ describe('Git blob streams', function () {
     });
   });
 
+  describe('treeReader', function () {
+    it('should correctly read a tree blob', function (done) {
+      var input = fs.createReadStream(tree);
+      var output = input.pipe(gbs.treeReader());
+      output.on('data', function (data) {
+        assert(typeof data === 'object');
+        assert("greeting.txt" in data);
+        assert(data["greeting.txt"].mode === gbs.gitModes.file);
+        assert(data["greeting.txt"].hash.toString('hex') === '327b85ca3f29975db856a0477278671456ff908b');
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+  });
+
   after(function (done) {
     fs.unlinkSync(tree);
     fs.unlinkSync(ipsum + ".blob");

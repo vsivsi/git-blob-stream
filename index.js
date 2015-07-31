@@ -171,9 +171,10 @@ var treeWriter = function (body, options) {
     if (typeof entry.hash === 'string') {
       entry.hash = new Buffer(entry.hash, 'hex');
     }
-    treeBuffers[2*i] = new Buffer(entry.mode.toString(8) + " " + entry.name + "\0");
-    treeBuffers[2*i+1] = entry.hash;
-    tbSize += treeBuffers[2*i].length + treeBuffers[2*i+1].length;
+    var b = new Buffer(entry.mode.toString(8) + " " + entry.name + "\0");
+    treeBuffers.push(b);
+    treeBuffers.push(entry.hash);
+    tbSize += b.length + entry.hash.length;
   }
   var buff = Buffer.concat(treeBuffers, tbSize);
   options.size = tbSize;
@@ -181,9 +182,66 @@ var treeWriter = function (body, options) {
   return streamifier.createReadStream(buff).pipe(blobWriter(options));
 };
 
+// Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function indexOf(buffer, byte, i) {
+  i |= 0;
+  var length = buffer.length;
+  for (;;i++) {
+    if (i >= length) return -1;
+    if (buffer[i] === byte) return i;
+  }
+}
+
+// Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function treeParser(body) {
+  var i = 0;
+  var length = body.length;
+  var start;
+  var mode;
+  var name;
+  var hash;
+  var tree = {};
+  while (i < length) {
+    start = i;
+    i = indexOf(body, 0x20, start);
+    if (i < 0) throw new SyntaxError("Missing space");
+    mode = parseInt(body.slice(start,i++),8);
+    start = i;
+    i = indexOf(body, 0x00, start);
+    name = body.slice(start, i++).toString();
+    hash = body.slice(i, i += 20).toString('hex');
+    tree[name] = {
+      mode: mode,
+      hash: hash
+    };
+  }
+  return tree;
+}
+
+treeReader = function () {
+  var input = blobReader();
+  var chunkList = [];
+  var chunkLen = 0;
+  var transform = through2({ objectMode: true },
+    function (chunk, enc, cb) {
+      chunkLen += chunk.length;
+      chunkList.push(chunk);
+      cb();
+    },
+    function (cb) {
+      this.push(treeParser(Buffer.concat(chunkList)));
+      cb();
+    }
+  );
+  return duplexer2(input, input.pipe(transform));
+};
+
 module.exports = exports = {
   blobWriter: blobWriter,
   blobReader: blobReader,
   treeWriter: treeWriter,
+  treeReader: treeReader,
   gitModes: gitModes
 };
