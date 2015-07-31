@@ -1,3 +1,8 @@
+##### .NEXT
+
+* Added support for reading and writing commit and tag blobs. e.g. `gbs.commitReader()` and `gbs.tagWriter()`
+* Updated Copyright and License information to acknowledge git-object code integrated from @creationix / js-git
+
 ##### 0.0.5
 
 * SHA1 hash output 'binary' is now 'buffer', returns a buffer and is the default. 'hex' now returns a string.

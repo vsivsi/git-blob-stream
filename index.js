@@ -2,6 +2,11 @@
 ###  Copyright (C) 2015 by Vaughn Iverson
 ###  git-blob-stream is free software released under the MIT/X11 license.
 ###  See included LICENSE file for details.
+###
+###  Portions of this source file (as noted) are taken/adapted from js-git:
+###  https://github.com/creationix/js-git
+###  Copyright (c) 2013-2014 Tim Caswell <tim@creationix.com>
+###  Under the terms of the MIT License
 ***************************************************************************/
 
 var zlib = require('zlib'),
@@ -13,15 +18,19 @@ var zlib = require('zlib'),
 var validHashOutputFormats = { 'hex': true, 'buffer': true };
 var validBlobTypes = { 'blob': true, 'tree': true, 'commit': true, 'tag': true };
 
-var blobWriter = function (options) {
+function optionChecker (options) {
   if (options) {
     if (typeof options !== 'object') {
-      console.error('Bad options object passed to blobWriter');
-      return null;
+      throw new Error('Bad options object passed');
     }
   } else {
     options = {};
   }
+  return options;
+}
+
+var blobWriter = function (options) {
+  options = optionChecker(options);
   if (!options.size || (typeof options.size !== 'number')) {
     console.error('Invalid size option passed to blobWriter');
     return null;
@@ -77,14 +86,7 @@ var blobWriter = function (options) {
 };
 
 var blobReader = function (options) {
-  if (options) {
-    if (typeof options !== 'object') {
-      console.error('Bad options object passed to blobReader');
-      return null;
-    }
-  } else {
-    options = {};
-  }
+  options = optionChecker(options);
   var header = true;
   if (options.header) {
     header = false;
@@ -154,14 +156,7 @@ function treeSort(a, b) {
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
 // MIT Licensed
 var treeWriter = function (body, options) {
-  if (options) {
-    if (typeof options !== 'object') {
-      console.error('Bad options object passed to blobReader');
-      return null;
-    }
-  } else {
-    options = {};
-  }
+  options = optionChecker(options);
   var treeBuffers = [];
   var tbSize = 0;
   if (Array.isArray(body)) throw new TypeError("Tree must be in object form");
@@ -193,6 +188,24 @@ function indexOf(buffer, byte, i) {
   }
 }
 
+function genericReader(parser) {
+  var input = blobReader();
+  var chunkList = [];
+  var chunkLen = 0;
+  var transform = through2({ objectMode: true },
+    function (chunk, enc, cb) {
+      chunkLen += chunk.length;
+      chunkList.push(chunk);
+      cb();
+    },
+    function (cb) {
+      this.push(parser(Buffer.concat(chunkList)));
+      cb();
+    }
+  );
+  return duplexer2(input, input.pipe(transform));
+}
+
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
 // MIT Licensed
 function treeParser(body) {
@@ -221,21 +234,164 @@ function treeParser(body) {
 }
 
 treeReader = function () {
-  var input = blobReader();
-  var chunkList = [];
-  var chunkLen = 0;
-  var transform = through2({ objectMode: true },
-    function (chunk, enc, cb) {
-      chunkLen += chunk.length;
-      chunkList.push(chunk);
-      cb();
-    },
-    function (cb) {
-      this.push(treeParser(Buffer.concat(chunkList)));
-      cb();
+  return genericReader(treeParser);
+};
+
+// Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function formatPerson(person) {
+  return safe(person.name) +
+    " <" + safe(person.email) + "> " +
+    formatDate(person.date);
+}
+
+// Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function safe(string) {
+  return string.replace(/(?:^[\.,:;<>"']+|[\0\n<>]+|[\.,:;<>"']+$)/gm, "");
+}
+
+// Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function two(num) {
+  return (num < 10 ? "0" : "") + num;
+}
+
+// Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function formatDate(date) {
+  var seconds, offset;
+  if (date.seconds) {
+    seconds = date.seconds;
+    offset = date.offset;
+  }
+  // Also accept Date instances
+  else {
+    seconds = Math.floor(date.getTime() / 1000);
+    offset = date.getTimezoneOffset();
+  }
+  var neg = "+";
+  if (offset <= 0) offset = -offset;
+  else neg = "-";
+  offset = neg + two(Math.floor(offset / 60)) + two(offset % 60);
+  return seconds + " " + offset;
+}
+
+// Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+var tagWriter = function (body, options) {
+  options = optionChecker(options);
+  var str = "object " + body.object +
+    "\ntype " + body.type +
+    "\ntag " + body.tag +
+    "\ntagger " + formatPerson(body.tagger) +
+    "\n\n" + body.message;
+    var buff = new Buffer(str);
+    options.size = buff.length;
+    options.type = 'tag';
+    return streamifier.createReadStream(buff).pipe(blobWriter(options));
+};
+
+// Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+var commitWriter = function (body, options) {
+  options = optionChecker(options);
+  var str = "tree " + body.tree;
+  for (var i = 0, l = body.parents.length; i < l; ++i) {
+    str += "\nparent " + body.parents[i];
+  }
+  str += "\nauthor " + formatPerson(body.author) +
+         "\ncommitter " + formatPerson(body.committer) +
+         "\n\n" + body.message;
+  var buff = new Buffer(str);
+  options.size = buff.length;
+  options.type = 'commit';
+  return streamifier.createReadStream(buff).pipe(blobWriter(options));
+};
+
+// Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function decodePerson(string) {
+  var match = string.match(/^([^<]*) <([^>]*)> ([^ ]*) (.*)$/);
+  if (!match) throw new Error("Improperly formatted person string");
+  return {
+    name: match[1],
+    email: match[2],
+    date: {
+      seconds: parseInt(match[3], 10),
+      offset: parseInt(match[4], 10) / 100 * -60
     }
-  );
-  return duplexer2(input, input.pipe(transform));
+  };
+}
+
+// Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function commitParser(body) {
+  var i = 0;
+  var start;
+  var key;
+  var parents = [];
+  var commit = {
+    tree: "",
+    parents: parents,
+    author: "",
+    committer: "",
+    message: ""
+  };
+  while (body[i] !== 0x0a) {
+    start = i;
+    i = indexOf(body, 0x20, start);
+    if (i < 0) throw new SyntaxError("Missing space");
+    key = body.slice(start, i++).toString();
+    start = i;
+    i = indexOf(body, 0x0a, start);
+    if (i < 0) throw new SyntaxError("Missing linefeed");
+    var value = body.slice(start, i++).toString();
+    if (key === "parent") {
+      parents.push(value);
+    }
+    else {
+      if (key === "author" || key === "committer") {
+        value = decodePerson(value);
+      }
+      commit[key] = value;
+    }
+  }
+  i++;
+  commit.message = body.slice(i, body.length).toString();
+  return commit;
+}
+
+commitReader = function () {
+  return genericReader(commitParser);
+};
+
+// Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
+// MIT Licensed
+function tagParser(body) {
+  var i = 0;
+  var start;
+  var key;
+  var tag = {};
+  while (body[i] !== 0x0a) {
+    start = i;
+    i = indexOf(body, 0x20, start);
+    if (i < 0) throw new SyntaxError("Missing space");
+    key = body.slice(start, i++).toString();
+    start = i;
+    i = indexOf(body, 0x0a, start);
+    if (i < 0) throw new SyntaxError("Missing linefeed");
+    var value = body.slice(start, i++).toString();
+    if (key === "tagger") value = decodePerson(value);
+    tag[key] = value;
+  }
+  i++;
+  tag.message = body.slice(i, body.length).toString();
+  return tag;
+}
+
+tagReader = function () {
+  return genericReader(tagParser);
 };
 
 module.exports = exports = {
@@ -243,5 +399,9 @@ module.exports = exports = {
   blobReader: blobReader,
   treeWriter: treeWriter,
   treeReader: treeReader,
+  commitWriter: commitWriter,
+  commitReader: commitReader,
+  tagWriter: tagWriter,
+  tagReader: tagReader,
   gitModes: gitModes
 };
