@@ -31,7 +31,9 @@ function optionChecker (options) {
 
 var blobWriter = function (options) {
   options = optionChecker(options);
-  if (!options.size || (typeof options.size !== 'number')) {
+  if (options.size &&
+      ((typeof options.size !== 'number') ||
+       (Math.floor(options.size) !== options.size))) {
     throw new Error('Invalid size option passed to blobWriter');
   }
   if (options.type) {
@@ -55,25 +57,57 @@ var blobWriter = function (options) {
     }
   }
   var sha1 = crypto.createHash('sha1');
-  var transform = through2(
-    function (chunk, enc, cb) {
-      sha1.update(chunk, enc);
-      if (options.hashCallback) {
-        this.push(chunk);
+  var chunkBuffers = [];
+  var dataLength = 0;
+  var needHeader = true;
+  function makeHeader(type, size) {
+    return new Buffer(type + " " + size + "\0");
+  }
+  var transform = through2({ objectMode: !options.hashCallback },
+    function (data, enc, cb) {
+      if (enc) {
+        chunk = new Buffer(data, enc);
+      } else {
+        chunk = data;
+      }
+      dataLength += chunk.length;
+      if (options.size) {
+        if (needHeader) {
+          var header = makeHeader(options.type, options.size);
+          sha1.update(header);
+          if (options.hashCallback) this.push(header);
+          needHeader = false;
+        }
+        sha1.update(chunk);
+        if (options.hashCallback) this.push(chunk);
+      } else {
+        if (options.hashCallback) chunkBuffers.push(chunk);
       }
       cb();
     },
     function (cb) {
+      if (options.size) {
+        if (options.size !== dataLength)
+          throw new Error('Wrong size given when writing blob');
+      } else {
+        var outputBuffer = Buffer.concat(chunkBuffers);
+        if (outputBuffer.length !== dataLength)
+          throw new Error("Payload mismatch with input when writing blob");
+        var header = makeHeader(options.type, dataLength);
+        sha1.update(header);
+        this.push(header);
+        sha1.update(outputBuffer);
+        this.push(outputBuffer);
+      }
       var hash = sha1.digest(options.hashFormat);
       if (options.hashCallback) {
-        options.hashCallback(hash);
+        options.hashCallback({hash: hash, size: dataLength});
       } else {
-        this.push(hash);
+        this.push({hash: hash, size: dataLength});
       }
       cb();
     }
   );
-  transform.write(new Buffer(options.type + " " + options.size + "\0"));
   if (options.hashCallback) {
     return duplexer2(transform, transform.pipe(zlib.createDeflate()));
   } else {

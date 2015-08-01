@@ -1,3 +1,9 @@
+##### 0.0.8
+
+* `size` is now optional for `gbs.blobWriter()`. It is more efficient to provide it (if known) because otherwise a blob sized buffer needs to be built.
+* The `hashCallback` and/or streaming hash output now returns an object containing `{ hash: <hashInReqFormat>, size: <sizeOfBlobData>}`
+* Docs and Tests were updated
+
 ##### 0.0.7
 
 * Tree, commit and tag input data structures are now more permissive of missing fields unless the `strict` option is used with the corresponding `*Writer()` call.

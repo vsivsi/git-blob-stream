@@ -27,7 +27,9 @@ var input = fs.createReadStream("filename.blob");
 var output = fs.createWriteStream("filename");
 
 var xformStream = gbs.blobReader({
-  header: false          // Default, blob header retained in output if truthy
+  header: false         // Default, output blob data in stream
+                        // If true, the stream output is an object:
+                        // { type: <blobType>, size: <blobDataLength> }
 });
 
 // Decode the file...
@@ -47,18 +49,20 @@ var gbs = require('git-blob-stream');
 var input = fs.createReadStream("filename");
 var output = fs.createWriteStream("filename.blob");
 
-var hashFunc = function (hash) {
-  // hash is a buffer containing the 20 byte SHA1 sum, or a string if
+var hashFunc = function (ret) {
+  // ret is an object:
+  // { size: <blobDataLength>, hash: <hashValue> }
+  // hashValue is a buffer containing the 20 byte SHA1 sum, or a string if
   // a non-default hoshFormat is specified
 }
 
 // All options are manditory!
 var xformStream = gbs.blobWriter({
-  size: fs.statSync("filename").size,  // Required!
+  size: fs.statSync("filename").size,  // Optional, but more efficient if provided!
   type: "blob",                        // Default, or "tree", "tag" or "commit"
   hashFormat: 'buffer'                 // Default, or 'hex' string
   hashCallback: hashFunc,              // Get the SHA1 hash, if omitted
-                                       // output stream contains the hash
+                                       // output stream contains the ret object
 });
 
 // Write the file. hashCallback will be called when finished
@@ -71,7 +75,7 @@ output.on('close', function () {
 
 #### Higher level git objects
 
-In addition to blobs, this library can also stream to/from [js-git](https://github.com/creationix) style tree objects.
+In addition to blobs, this package can also stream to/from [js-git](https://github.com/creationix) style tree, commit and tag objects.
 
 ##### To read a tree blob file:
 
@@ -113,9 +117,9 @@ var xformStream = gbs.treeWriter(
     'greetings.txt' : { mode: gbs.gitModes.file, hash: fileHash }
   },
   {
-    hashFormat: 'buffer'                 // Default, or 'hex' string
-    hashCallback: hashFunc,              // Get the SHA1 hash, if omitted
-                                       // output stream contains the hash
+    hashFormat: 'buffer'          // Default, or 'hex' string
+    hashCallback: hashFunc,       // Get the SHA1 hash, if omitted output
+                                  // stream contains the size/hash obj
   }
 );
 
@@ -127,6 +131,8 @@ output.on('close', function () {
 });
 ```
 
-Analogous calls for reading/writing commits and (annotated) tags also exist.
+Analogous calls for reading/writing commits and (annotated) tags also exist:
+`commitReader`, `commitWriter`, `tagReader`, `tagWriter`.
+All assume [js-git](https://github.com/creationix) style objects.
 
 Enjoy!

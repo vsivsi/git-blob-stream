@@ -10,6 +10,8 @@ var assert = require('assert'),
     gbs = require('../'),
     Step = require('step'),
     ipsum = __dirname + '/fixtures/ipsum.txt',
+    ipsumHash = '668e29c2db77e9dfe7c914700be7df724807c648',
+    ipsumLength = 74121,
     tree = __dirname + '/fixtures/tree.blob',
     commit = __dirname + '/fixtures/commit.blob',
     tag = __dirname + '/fixtures/tag.blob';
@@ -91,9 +93,10 @@ describe('Git blob streams', function () {
   });
   it('should pass data through a pipeline correctly', function (done) {
     var hashCalled = false;
-    var sha1Cb = function (hash) {
+    var sha1Cb = function (ret) {
       hashCalled = true;
-      assert(hash.toString('hex') === blobHash);
+      assert.equal(ret.hash.toString('hex'), blobHash);
+      assert.equal(ret.size, testBlob.length);
     };
     var input = gbs.blobWriter({type: 'blob', size: testBlob.length, hashCallback: sha1Cb});
     var output = input.pipe(gbs.blobReader());
@@ -116,13 +119,35 @@ describe('Git blob streams', function () {
   describe('blobWriter', function () {
     it('should work as a file encoder', function (done) {
       var hashCalled = false;
-      var sha1Cb = function (hash) {
+      var sha1Cb = function (ret) {
         hashCalled = true;
-        assert(hash.toString('hex') === '668e29c2db77e9dfe7c914700be7df724807c648');
+        assert.equal(ret.hash.toString('hex'), ipsumHash);
+        assert.equal(ret.size, ipsumLength);
       };
       var input = fs.createReadStream(ipsum);
       var output = fs.createWriteStream(ipsum + ".blob");
-      var writer = gbs.blobWriter({type: 'blob', size: 74121, hashCallback: sha1Cb});
+      var writer = gbs.blobWriter({type: 'blob', size: ipsumLength, hashCallback: sha1Cb});
+      output.on('close', function () {
+        assert(hashCalled);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+      input.pipe(writer).pipe(output);
+    });
+
+    it('should work as a file encoder without size option', function (done) {
+      var hashCalled = false;
+      var sha1Cb = function (ret) {
+        hashCalled = true;
+        assert.equal(ret.hash.toString('hex'), ipsumHash);
+        assert.equal(ret.size, ipsumLength);
+      };
+      var input = fs.createReadStream(ipsum);
+      var output = fs.createWriteStream(ipsum + ".blob");
+      var writer = gbs.blobWriter({type: 'blob', hashCallback: sha1Cb});
       output.on('close', function () {
         assert(hashCalled);
         done();
@@ -136,14 +161,15 @@ describe('Git blob streams', function () {
 
     it('should work as a hash calculator', function (done) {
       var input = fs.createReadStream(ipsum);
-      var writer = gbs.blobWriter({type: 'blob', size: 74121, hashFormat: 'buffer'});
+      var writer = gbs.blobWriter({type: 'blob', size: ipsumLength, hashFormat: 'buffer'});
       var pipeline = input.pipe(writer);
-      var hash = new Buffer(0);
-      pipeline.on('data', function (chunk) {
-        hash = Buffer.concat([hash, chunk]);
+      var ret = null;
+      pipeline.on('data', function (data) {
+        ret = data;
       });
       pipeline.on('end', function () {
-        assert(hash.toString('hex') === '668e29c2db77e9dfe7c914700be7df724807c648');
+        assert.equal(ret.hash.toString('hex'), ipsumHash);
+        assert.equal(ret.size, ipsumLength);
         done();
       });
       pipeline.on('error', function (e) {
@@ -152,16 +178,17 @@ describe('Git blob streams', function () {
       });
     });
 
-    it('should work as a hex hash calculator', function (done) {
+    it('should work as a hex string hash calculator', function (done) {
       var input = fs.createReadStream(ipsum);
-      var writer = gbs.blobWriter({type: 'blob', size: 74121, hashFormat: 'hex' });
+      var writer = gbs.blobWriter({type: 'blob', size: ipsumLength, hashFormat: 'hex' });
       var pipeline = input.pipe(writer);
-      var hash = '';
-      pipeline.on('data', function (chunk) {
-        hash = hash + chunk;
+      var ret = null;
+      pipeline.on('data', function (data) {
+        ret = data;
       });
       pipeline.on('end', function () {
-        assert(hash === '668e29c2db77e9dfe7c914700be7df724807c648');
+        assert.equal(ret.hash, ipsumHash);
+        assert.equal(ret.size, ipsumLength);
         done();
       });
       pipeline.on('error', function (e) {
@@ -211,8 +238,8 @@ describe('Git blob streams', function () {
   describe('treeWriter', function () {
     it('should correctly write a tree blob', function (done) {
       var hashCalled = false;
-      var hashFunc = function (hash) {
-        assert(hash === treeHash);
+      var hashFunc = function (ret) {
+        assert.equal(ret.hash, treeHash);
         hashCalled = true;
       };
       var output = fs.createWriteStream(tree);
@@ -248,8 +275,8 @@ describe('Git blob streams', function () {
   describe('commitWriter', function () {
     it('should correctly write a commit blob', function (done) {
       var hashCalled = false;
-      var hashFunc = function (hash) {
-        assert(hash === commitHash);
+      var hashFunc = function (ret) {
+        assert.equal(ret.hash, commitHash);
         hashCalled = true;
       };
       var output = fs.createWriteStream(commit);
@@ -285,8 +312,8 @@ describe('Git blob streams', function () {
   describe('tagWriter', function () {
     it('should correctly write a tag blob', function (done) {
       var hashCalled = false;
-      var hashFunc = function (hash) {
-        assert(hash === tagHash);
+      var hashFunc = function (ret) {
+        assert.equal(ret.hash, tagHash);
         hashCalled = true;
       };
       var output = fs.createWriteStream(tag);
