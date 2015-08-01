@@ -1,3 +1,7 @@
+##### .NEXT
+
+* Tree, commit and tag input data structures are now more permissive of missing fields unless the `strict` option is used with the corresponding `*Writer()` call. 
+
 ##### 0.0.6
 
 * Added support for reading and writing commit and tag blobs. e.g. `gbs.commitReader()` and `gbs.tagWriter()`
