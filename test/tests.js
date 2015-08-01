@@ -190,15 +190,14 @@ describe('Git blob streams', function () {
       input.pipe(reader);
     });
 
-    it('should work as a file decoder with retained header', function (done) {
+    it('should work as a header decoder', function (done) {
       var input = fs.createReadStream(ipsum + ".blob");
       var reader = gbs.blobReader({ header: true });
-      var sha1 = crypto.createHash('sha1');
-      reader.on('data', function (chunk) {
-        sha1.update(chunk);
+      reader.on('data', function (header) {
+        assert.equal(header.type, 'blob');
+        assert.equal(header.size, 74121);
       });
       reader.on('end', function () {
-        assert(sha1.digest('hex') === '668e29c2db77e9dfe7c914700be7df724807c648');
         done();
       });
       reader.on('error', function (e) {

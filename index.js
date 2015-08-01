@@ -32,27 +32,23 @@ function optionChecker (options) {
 var blobWriter = function (options) {
   options = optionChecker(options);
   if (!options.size || (typeof options.size !== 'number')) {
-    console.error('Invalid size option passed to blobWriter');
-    return null;
+    throw new Error('Invalid size option passed to blobWriter');
   }
   if (options.type) {
     if ((typeof options.type !== 'string') ||
         !(options.type in validBlobTypes)) {
-      console.error('Invalid type option passed to blobWriter');
-      return null;
+      throw new Error('Invalid type option passed to blobWriter');
     }
   } else {
     options.type = 'blob';
   }
   if (options.hashCallback && (typeof options.hashCallback !== 'function')) {
-    console.error('Invalid hashCallback option passed to blobWriter');
-    return null;
+    throw new Error('Invalid hashCallback option passed to blobWriter');
   }
   if (options.hashFormat) {
     if (typeof options.hashFormat !== 'string' ||
         !(options.hashFormat in validHashOutputFormats)) {
-      console.error('Invalid hashFormat option passed to blobWriter');
-      return null;
+      throw new Error('Invalid hashFormat option passed to blobWriter');
     }
     if (options.hashFormat === 'buffer') {
       delete options.hashFormat;
@@ -87,22 +83,38 @@ var blobWriter = function (options) {
 
 var blobReader = function (options) {
   options = optionChecker(options);
-  var header = true;
-  if (options.header) {
-    header = false;
-  }
+  var headerDone = false;
+  if (!("header" in options)) options.header = false;
   var inflator = zlib.createInflate();
-  var transform = through2(
+  var headerChunks = [];
+  var transform = through2({ objectMode: options.header },
     function (chunk, enc, cb) {
-      if (header) {
+      if (!headerDone) {
         for (var idx = 0; idx < chunk.length; idx++) {
           if (chunk[idx] === 0) {
-            header = false;
-            this.push(chunk.slice(idx+1));
+            headerDone = true;
+            if (options.header) {
+              headerChunks.push(chunk.slice(0, idx));
+            } else {
+              this.push(chunk.slice(idx+1));
+            }
             break;
           }
         }
-      } else {
+        if (options.header) {
+          if (headerDone) {
+            var headerStr = Buffer.concat(headerChunks).toString();
+            var spaceIdx = headerStr.indexOf(' ');
+            if (spaceIdx < 1) throw new Error("Invalid blob header");
+            var headerObj = {
+              type: headerStr.slice(0, spaceIdx),
+              size: parseInt(headerStr.slice(spaceIdx+1))};
+            this.push(headerObj);
+          } else {
+            headerChunks.push(chunk);
+          }
+        }
+      } else if (!options.header) {
         this.push(chunk);
       }
       cb();

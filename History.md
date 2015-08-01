@@ -1,6 +1,8 @@
 ##### .NEXT
 
-* Tree, commit and tag input data structures are now more permissive of missing fields unless the `strict` option is used with the corresponding `*Writer()` call. 
+* Tree, commit and tag input data structures are now more permissive of missing fields unless the `strict` option is used with the corresponding `*Writer()` call.
+* The `header` option to `gbs.blobReader()` now causes a single parsed header object to be written to the output stream.
+* All `console.error()` calls now `throw`
 
 ##### 0.0.6
 
