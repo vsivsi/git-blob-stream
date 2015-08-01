@@ -8,26 +8,102 @@ var assert = require('assert'),
     fs = require('fs'),
     crypto = require('crypto'),
     gbs = require('../'),
-    ipsum = __dirname + '/fixtures/ipsum.txt';
-    tree = __dirname + '/fixtures/tree.blob';
+    Step = require('step'),
+    ipsum = __dirname + '/fixtures/ipsum.txt',
+    tree = __dirname + '/fixtures/tree.blob',
+    commit = __dirname + '/fixtures/commit.blob',
+    tag = __dirname + '/fixtures/tag.blob';
+
+var repo = {};
+require('js-git/mixins/mem-db')(repo);
+require('js-git/mixins/formats')(repo);
 
 describe('Git blob streams', function () {
+  var testBlob = "Hello World\n",
+      testTree = {
+        "greeting.txt": { mode: gbs.gitModes.file, hash: null }
+      },
+      testCommit = {
+        tree: null,
+        author: {
+          name: "Bozo the Clown",
+          email: "bozo@clowns.com"
+        },
+        message: "LOL; JK, KThxBye\n"
+      },
+      testTag = {
+        object: null,
+        type: "commit",
+        tag: "theBest",
+        tagger: {
+          name: "Fizbo the Clown",
+          email: "fizbo@clowns.com"
+        },
+        message: "The best commit ever!\n"
+      };
+
+  var blobHash, treeHash, commitHash, tagHash;
+  before(function (done) {
+    Step(
+      function () {
+        repo.saveAs("blob", "Hello World\n", this);
+      },
+      function (err, hash) {
+        if (err) throw err;
+        blobHash = hash;
+        testTree["greeting.txt"].hash = blobHash;
+        repo.saveAs("tree", testTree, this);
+      },
+      function (err, hash) {
+        if (err) throw err;
+        treeHash = hash;
+        testCommit.tree = treeHash;
+        repo.saveAs("commit", testCommit, this.parallel());
+        repo.loadAs("tree", treeHash, this.parallel());
+      },
+      function (err, hash, tree) {
+        if (err) throw err;
+        commitHash = hash;
+        testTree = tree;
+        // console.dir(testTree);
+        testTag.object = commitHash;
+        repo.saveAs("tag", testTag, this.parallel());
+        repo.loadAs("commit", commitHash, this.parallel());
+      },
+      function (err, hash, commit) {
+        if (err) throw err;
+        tagHash = hash;
+        testCommit = commit;
+        // console.dir(testCommit);
+        repo.loadAs("tag", tagHash, this);
+      },
+      function (err, tag) {
+        if (err) throw err;
+        testTag = tag;
+        // console.dir(testTag);
+        // console.log("blobHash:", blobHash);
+        // console.log("treeHash:", treeHash);
+        // console.log("commitHash:", commitHash);
+        // console.log("tagHash:", tagHash);
+        done();
+      }
+    );
+  });
   it('should pass data through a pipeline correctly', function (done) {
-    var msg = "This is the message text!\n";
     var hashCalled = false;
     var sha1Cb = function (hash) {
       hashCalled = true;
-      assert(hash.toString('hex') === '327b85ca3f29975db856a0477278671456ff908b');
+      assert(hash.toString('hex') === blobHash);
     };
-    var input = gbs.blobWriter({type: 'blob', size: msg.length, hashCallback: sha1Cb});
+    var input = gbs.blobWriter({type: 'blob', size: testBlob.length, hashCallback: sha1Cb});
     var output = input.pipe(gbs.blobReader());
-    input.end(new Buffer(msg));
+    input.end(new Buffer(testBlob));
     var msgOut = new Buffer(0);
     output.on('data', function (chunk) {
       msgOut = Buffer.concat([msgOut, chunk]);
     });
     output.on('end', function () {
-      assert(msgOut.toString() === msg);
+      assert(msgOut.toString() === testBlob);
       assert(hashCalled);
       done();
     });
@@ -137,13 +213,11 @@ describe('Git blob streams', function () {
     it('should correctly write a tree blob', function (done) {
       var hashCalled = false;
       var hashFunc = function (hash) {
-        assert(hash === 'fc6f4a212a7ce72994a4efa8d8d5b82b2baed22b');
+        assert(hash === treeHash);
         hashCalled = true;
       };
       var output = fs.createWriteStream(tree);
-      var input = gbs.treeWriter({
-        "greeting.txt": { mode: gbs.gitModes.file, hash: '327b85ca3f29975db856a0477278671456ff908b' }
-      }, { hashFormat: 'hex', hashCallback: hashFunc });
+      var input = gbs.treeWriter(testTree, { hashFormat: 'hex', hashCallback: hashFunc });
       input.pipe(output);
       output.on('close', function () {
         assert(hashCalled);
@@ -162,9 +236,81 @@ describe('Git blob streams', function () {
       var output = input.pipe(gbs.treeReader());
       output.on('data', function (data) {
         assert(typeof data === 'object');
-        assert("greeting.txt" in data);
-        assert(data["greeting.txt"].mode === gbs.gitModes.file);
-        assert(data["greeting.txt"].hash.toString('hex') === '327b85ca3f29975db856a0477278671456ff908b');
+        assert.deepEqual(data, testTree);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+  });
+
+  describe('commitWriter', function () {
+    it('should correctly write a commit blob', function (done) {
+      var hashCalled = false;
+      var hashFunc = function (hash) {
+        assert(hash === commitHash);
+        hashCalled = true;
+      };
+      var output = fs.createWriteStream(commit);
+      var input = gbs.commitWriter(testCommit, { hashFormat: 'hex', hashCallback: hashFunc });
+      input.pipe(output);
+      output.on('close', function () {
+        assert(hashCalled);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+  });
+
+  describe('commitReader', function () {
+    it('should correctly read a commit blob', function (done) {
+      var input = fs.createReadStream(commit);
+      var output = input.pipe(gbs.commitReader());
+      output.on('data', function (data) {
+        assert(typeof data === 'object');
+        assert.deepEqual(data, testCommit);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+  });
+
+  describe('tagWriter', function () {
+    it('should correctly write a tag blob', function (done) {
+      var hashCalled = false;
+      var hashFunc = function (hash) {
+        assert(hash === tagHash);
+        hashCalled = true;
+      };
+      var output = fs.createWriteStream(tag);
+      var input = gbs.tagWriter(testTag, { hashFormat: 'hex', hashCallback: hashFunc });
+      input.pipe(output);
+      output.on('close', function () {
+        assert(hashCalled);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+  });
+
+  describe('tagReader', function () {
+    it('should correctly read a tag blob', function (done) {
+      var input = fs.createReadStream(tag);
+      var output = input.pipe(gbs.tagReader());
+      output.on('data', function (data) {
+        assert(typeof data === 'object');
+        assert.deepEqual(data, testTag);
         done();
       });
       output.on('error', function (e) {
@@ -175,6 +321,8 @@ describe('Git blob streams', function () {
   });
 
   after(function (done) {
+    fs.unlinkSync(tag);
+    fs.unlinkSync(commit);
     fs.unlinkSync(tree);
     fs.unlinkSync(ipsum + ".blob");
     done();
