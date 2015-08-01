@@ -1,4 +1,4 @@
-##### .NEXT
+##### 0.0.6
 
 * Added support for reading and writing commit and tag blobs. e.g. `gbs.commitReader()` and `gbs.tagWriter()`
 * Updated Copyright and License information to acknowledge git-object code integrated from @creationix / js-git
