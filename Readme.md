@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/vsivsi/git-blob-stream.svg)](https://travis-ci.org/vsivsi/git-blob-stream)
 
+**WARNING** This package is still under active development, I reserve the right to change anything until 0.1.0 is released. At that point I'll go all SemVer and everything.
+
 This npm package makes it easy and efficient to read and write Git blob files using node.js Stream2 streams. It has no dependencies on command line git or native code git libraries; instead using crypto and compression libraries already built into node.js.
 
 ### Installation
@@ -124,5 +126,7 @@ output.on('close', function () {
   // All done
 });
 ```
+
+Analogous calls for reading/writing commits and (annotated) tags also exist.
 
 Enjoy!
