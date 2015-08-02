@@ -1,3 +1,13 @@
+
+##### 0.0.9
+
+* `hashCallback` option has been eliminated from all *Writer calls, in favor of an optional callback as the last parameter.
+* `blobReader` also now accepts an optional callback as the last parameter for returning header information.
+* Both `blobReader` and the *Writer calls no longer output objects under any circumstances.
+* `treeReader`, `commitReader` and `tagReader` now accept an optional callback. If provided, the callback is called with the output. If no callback is provided, then the output can be read from the stream as an object as before.  
+* `noOutput` option has been added to all *Writer calls as well as `blobReader` to allow for "callback only" operation.
+* The *Writer calls no longer have a `hashFormat` option. All hashes are now returned to the callback in `'hex'` format.
+
 ##### 0.0.8
 
 * `size` is now optional for `gbs.blobWriter()`. It is more efficient to provide it (if known) because otherwise a blob sized buffer needs to be built.

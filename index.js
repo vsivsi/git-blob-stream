@@ -15,11 +15,12 @@ var zlib = require('zlib'),
     streamifier = require('streamifier'),
     duplexer2 = require('duplexer2');
 
-var validHashOutputFormats = { 'hex': true, 'buffer': true };
 var validBlobTypes = { 'blob': true, 'tree': true, 'commit': true, 'tag': true };
 
 function optionChecker (options) {
   if (options) {
+    if (typeof options === 'function')
+      options = { cb: options };
     if (typeof options !== 'object') {
       throw new Error('Bad options object passed');
     }
@@ -29,8 +30,11 @@ function optionChecker (options) {
   return options;
 }
 
-var blobWriter = function (options) {
+var blobWriter = function (options, callback) {
   options = optionChecker(options);
+  if (options.cb) callback = options.cb;
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to blobWriter');
   if (options.size &&
       ((typeof options.size !== 'number') ||
        (Math.floor(options.size) !== options.size))) {
@@ -44,18 +48,6 @@ var blobWriter = function (options) {
   } else {
     options.type = 'blob';
   }
-  if (options.hashCallback && (typeof options.hashCallback !== 'function')) {
-    throw new Error('Invalid hashCallback option passed to blobWriter');
-  }
-  if (options.hashFormat) {
-    if (typeof options.hashFormat !== 'string' ||
-        !(options.hashFormat in validHashOutputFormats)) {
-      throw new Error('Invalid hashFormat option passed to blobWriter');
-    }
-    if (options.hashFormat === 'buffer') {
-      delete options.hashFormat;
-    }
-  }
   var sha1 = crypto.createHash('sha1');
   var chunkBuffers = [];
   var dataLength = 0;
@@ -63,7 +55,7 @@ var blobWriter = function (options) {
   function makeHeader(type, size) {
     return new Buffer(type + " " + size + "\0");
   }
-  var transform = through2({ objectMode: !options.hashCallback },
+  var transform = through2(
     function (data, enc, cb) {
       if (enc) {
         chunk = new Buffer(data, enc);
@@ -75,13 +67,13 @@ var blobWriter = function (options) {
         if (needHeader) {
           var header = makeHeader(options.type, options.size);
           sha1.update(header);
-          if (options.hashCallback) this.push(header);
+          if (!options.noOutput) this.push(header);
           needHeader = false;
         }
         sha1.update(chunk);
-        if (options.hashCallback) this.push(chunk);
+        if (!options.noOutput) this.push(chunk);
       } else {
-        if (options.hashCallback) chunkBuffers.push(chunk);
+        chunkBuffers.push(chunk);
       }
       cb();
     },
@@ -95,47 +87,44 @@ var blobWriter = function (options) {
           throw new Error("Payload mismatch with input when writing blob");
         var header = makeHeader(options.type, dataLength);
         sha1.update(header);
-        this.push(header);
+        if (!options.noOutput) this.push(header);
         sha1.update(outputBuffer);
-        this.push(outputBuffer);
+        if (!options.noOutput) this.push(outputBuffer);
       }
-      var hash = sha1.digest(options.hashFormat);
-      if (options.hashCallback) {
-        options.hashCallback({hash: hash, size: dataLength});
-      } else {
-        this.push({hash: hash, size: dataLength});
-      }
+      var hash = sha1.digest('hex');
+      if (callback)
+        callback({hash: hash, size: dataLength});
       cb();
     }
   );
-  if (options.hashCallback) {
-    return duplexer2(transform, transform.pipe(zlib.createDeflate()));
-  } else {
+  if (options.noOutput) {
+    transform.on('data', function () {});
     return transform;
+  } else {
+    return duplexer2(transform, transform.pipe(zlib.createDeflate()));
   }
 };
 
-var blobReader = function (options) {
+var blobReader = function (options, callback) {
   options = optionChecker(options);
+  if (options.cb) callback = options.cb;
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to blobReader');
   var headerDone = false;
-  if (!("header" in options)) options.header = false;
   var inflator = zlib.createInflate();
   var headerChunks = [];
-  var transform = through2({ objectMode: options.header },
+  var transform = through2(
     function (chunk, enc, cb) {
       if (!headerDone) {
         for (var idx = 0; idx < chunk.length; idx++) {
           if (chunk[idx] === 0) {
             headerDone = true;
-            if (options.header) {
-              headerChunks.push(chunk.slice(0, idx));
-            } else {
-              this.push(chunk.slice(idx+1));
-            }
+            if (callback) headerChunks.push(chunk.slice(0, idx));
+            if (!options.noOutput) this.push(chunk.slice(idx+1));
             break;
           }
         }
-        if (options.header) {
+        if (callback) {
           if (headerDone) {
             var headerStr = Buffer.concat(headerChunks).toString();
             var spaceIdx = headerStr.indexOf(' ');
@@ -143,18 +132,24 @@ var blobReader = function (options) {
             var headerObj = {
               type: headerStr.slice(0, spaceIdx),
               size: parseInt(headerStr.slice(spaceIdx+1))};
-            this.push(headerObj);
+            callback(headerObj);
           } else {
             headerChunks.push(chunk);
           }
         }
-      } else if (!options.header) {
+      } else if (!options.noOutput) {
         this.push(chunk);
       }
       cb();
     }
   );
-  return duplexer2(inflator, inflator.pipe(transform));
+  outStream = inflator.pipe(transform);
+  if (options.noOutput) {
+    outStream.on('data', function () {});
+    return inflator;
+  } else {
+    return duplexer2(inflator, outStream);
+  }
 };
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/lib/modes.js
@@ -201,8 +196,11 @@ function treeSort(a, b) {
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
 // MIT Licensed
-var treeWriter = function (body, options) {
+var treeWriter = function (body, options, callback) {
   options = optionChecker(options);
+  if (options.cb) callback = options.cb;
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to treeWriter');
   if (!options.strict) {
     body = normalizeTree(body);
   }
@@ -237,7 +235,11 @@ function indexOf(buffer, byte, i) {
   }
 }
 
-function genericReader(parser) {
+function genericReader(parser, callback) {
+  if (typeof parser !== 'function')
+    throw new Error('Invalid parser function passed to genericReader');
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to genericReader');
   var input = blobReader();
   var chunkList = [];
   var chunkLen = 0;
@@ -248,11 +250,22 @@ function genericReader(parser) {
       cb();
     },
     function (cb) {
-      this.push(parser(Buffer.concat(chunkList)));
+      var output = parser(Buffer.concat(chunkList));
+      if (callback) {
+        callback(output);
+      } else {
+        this.push(output);
+      }
       cb();
     }
   );
-  return duplexer2(input, input.pipe(transform));
+  var outStream = input.pipe(transform);
+  if (callback) {
+    outStream.on('data', function () {});
+    return input;
+  } else {
+    return duplexer2(input, outStream);
+  }
 }
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -282,8 +295,10 @@ function treeParser(body) {
   return tree;
 }
 
-treeReader = function () {
-  return genericReader(treeParser);
+treeReader = function (callback) {
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to treeReader');
+  return genericReader(treeParser, callback);
 };
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -328,8 +343,11 @@ function formatDate(date) {
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
 // MIT Licensed
-var tagWriter = function (body, options) {
+var tagWriter = function (body, options, callback) {
   options = optionChecker(options);
+  if (options.cb) callback = options.cb;
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to tagWriter');
   if (!options.strict) {
     body = normalizeTag(body);
   }
@@ -346,8 +364,11 @@ var tagWriter = function (body, options) {
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
 // MIT Licensed
-var commitWriter = function (body, options) {
+var commitWriter = function (body, options, callback) {
   options = optionChecker(options);
+  if (options.cb) callback = options.cb;
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to commitWriter');
   if (!options.strict) {
     body = normalizeCommit(body);
   }
@@ -417,8 +438,10 @@ function commitParser(body) {
   return commit;
 }
 
-commitReader = function () {
-  return genericReader(commitParser);
+commitReader = function (callback) {
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to commitReader');
+  return genericReader(commitParser, callback);
 };
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -445,8 +468,10 @@ function tagParser(body) {
   return tag;
 }
 
-tagReader = function () {
-  return genericReader(tagParser);
+tagReader = function (callback) {
+  if (callback && (typeof callback !== 'function'))
+    throw new Error('Invalid callback function passed to tagReader');
+  return genericReader(tagParser, callback);
 };
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/mixins/formats.js

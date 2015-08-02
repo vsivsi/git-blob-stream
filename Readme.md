@@ -26,11 +26,15 @@ var gbs = require('git-blob-stream');
 var input = fs.createReadStream("filename.blob");
 var output = fs.createWriteStream("filename");
 
+var headerFunc = function (ret) {
+  // ret is an object:
+  // { size: <blobDataLength>, type: <blobType> }
+};
+
 var xformStream = gbs.blobReader({
-  header: false         // Default, output blob data in stream
-                        // If true, the stream output is an object:
-                        // { type: <blobType>, size: <blobDataLength> }
-});
+    noOutput: false    // Default, if true, no data will be readable
+  },
+  headerFunc);      // callback is optional
 
 // Decode the file...
 input.pipe(xformStream).pipe(output);
@@ -52,18 +56,16 @@ var output = fs.createWriteStream("filename.blob");
 var hashFunc = function (ret) {
   // ret is an object:
   // { size: <blobDataLength>, hash: <hashValue> }
-  // hashValue is a buffer containing the 20 byte SHA1 sum, or a string if
-  // a non-default hoshFormat is specified
+  // hashValue is a hex string of the 20 byte SHA1 sum
 }
 
 // All options are manditory!
 var xformStream = gbs.blobWriter({
   size: fs.statSync("filename").size,  // Optional, but more efficient if provided!
   type: "blob",                        // Default, or "tree", "tag" or "commit"
-  hashFormat: 'buffer'                 // Default, or 'hex' string
-  hashCallback: hashFunc,              // Get the SHA1 hash, if omitted
-                                       // output stream contains the ret object
-});
+  noOutput: false                      // Default, if true, no data will be written
+  },
+  hashFunc); // callback is optional
 
 // Write the file. hashCallback will be called when finished
 input.pipe(xformStream).pipe(output);
@@ -106,9 +108,10 @@ var gbs = require('git-blob-stream');
 
 var output = fs.createWriteStream("tree.blob");
 
-var hashFunc = function (hash) {
-  // hash is a buffer containing the 20 byte SHA1 sum, or a string if
-  // a non-default hoshFormat is specified
+var hashFunc = function (ret) {
+  // ret is an object:
+  // { size: <blobDataLength>, hash: <hashValue> }
+  // hashValue is a hex string of the 20 byte SHA1 sum
 }
 
 // All options are manditory!
@@ -116,12 +119,7 @@ var xformStream = gbs.treeWriter(
   {
     'greetings.txt' : { mode: gbs.gitModes.file, hash: fileHash }
   },
-  {
-    hashFormat: 'buffer'          // Default, or 'hex' string
-    hashCallback: hashFunc,       // Get the SHA1 hash, if omitted output
-                                  // stream contains the size/hash obj
-  }
-);
+  hashFunc); // callback is optional
 
 // Write the file. hashCallback will be called when finished
 xformStream.pipe(output);

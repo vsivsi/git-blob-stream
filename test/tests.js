@@ -98,7 +98,7 @@ describe('Git blob streams', function () {
       assert.equal(ret.hash.toString('hex'), blobHash);
       assert.equal(ret.size, testBlob.length);
     };
-    var input = gbs.blobWriter({type: 'blob', size: testBlob.length, hashCallback: sha1Cb});
+    var input = gbs.blobWriter({type: 'blob', size: testBlob.length }, sha1Cb);
     var output = input.pipe(gbs.blobReader());
     input.end(new Buffer(testBlob));
     var msgOut = new Buffer(0);
@@ -106,7 +106,7 @@ describe('Git blob streams', function () {
       msgOut = Buffer.concat([msgOut, chunk]);
     });
     output.on('end', function () {
-      assert(msgOut.toString() === testBlob);
+      assert.equal(msgOut.toString(), testBlob);
       assert(hashCalled);
       done();
     });
@@ -126,7 +126,7 @@ describe('Git blob streams', function () {
       };
       var input = fs.createReadStream(ipsum);
       var output = fs.createWriteStream(ipsum + ".blob");
-      var writer = gbs.blobWriter({type: 'blob', size: ipsumLength, hashCallback: sha1Cb});
+      var writer = gbs.blobWriter({type: 'blob', size: ipsumLength}, sha1Cb);
       output.on('close', function () {
         assert(hashCalled);
         done();
@@ -147,7 +147,7 @@ describe('Git blob streams', function () {
       };
       var input = fs.createReadStream(ipsum);
       var output = fs.createWriteStream(ipsum + ".blob");
-      var writer = gbs.blobWriter({type: 'blob', hashCallback: sha1Cb});
+      var writer = gbs.blobWriter({type: 'blob'}, sha1Cb);
       output.on('close', function () {
         assert(hashCalled);
         done();
@@ -159,36 +159,18 @@ describe('Git blob streams', function () {
       input.pipe(writer).pipe(output);
     });
 
-    it('should work as a hash calculator', function (done) {
-      var input = fs.createReadStream(ipsum);
-      var writer = gbs.blobWriter({type: 'blob', size: ipsumLength, hashFormat: 'buffer'});
-      var pipeline = input.pipe(writer);
-      var ret = null;
-      pipeline.on('data', function (data) {
-        ret = data;
-      });
-      pipeline.on('end', function () {
-        assert.equal(ret.hash.toString('hex'), ipsumHash);
-        assert.equal(ret.size, ipsumLength);
-        done();
-      });
-      pipeline.on('error', function (e) {
-        console.warn("Error in pipeline", e);
-        assert(false);
-      });
-    });
-
     it('should work as a hex string hash calculator', function (done) {
+      var callbackCalled = false;
       var input = fs.createReadStream(ipsum);
-      var writer = gbs.blobWriter({type: 'blob', size: ipsumLength, hashFormat: 'hex' });
-      var pipeline = input.pipe(writer);
-      var ret = null;
-      pipeline.on('data', function (data) {
-        ret = data;
-      });
-      pipeline.on('end', function () {
+      var sha1Cb = function (ret) {
+        callbackCalled = true;
         assert.equal(ret.hash, ipsumHash);
         assert.equal(ret.size, ipsumLength);
+      };
+      var writer = gbs.blobWriter({type: 'blob', size: ipsumLength, noOutput: true }, sha1Cb);
+      var pipeline = input.pipe(writer);
+      pipeline.on('end', function (e) {
+        assert(callbackCalled);
         done();
       });
       pipeline.on('error', function (e) {
@@ -207,7 +189,7 @@ describe('Git blob streams', function () {
         sha1.update(chunk);
       });
       reader.on('end', function () {
-        assert(sha1.digest('hex') === '0864e5f892af90df553f1cddc14bf6d00215e3d2');
+        assert.equal(sha1.digest('hex'), '0864e5f892af90df553f1cddc14bf6d00215e3d2');
         done();
       });
       reader.on('error', function (e) {
@@ -218,13 +200,16 @@ describe('Git blob streams', function () {
     });
 
     it('should work as a header decoder', function (done) {
+      var callbackCalled = false;
+      headerCb = function (ret) {
+        callbackCalled = true;
+        assert.equal(ret.type, 'blob');
+        assert.equal(ret.size, ipsumLength);
+      };
       var input = fs.createReadStream(ipsum + ".blob");
-      var reader = gbs.blobReader({ header: true });
-      reader.on('data', function (header) {
-        assert.equal(header.type, 'blob');
-        assert.equal(header.size, 74121);
-      });
+      var reader = gbs.blobReader({ noOutput: true }, headerCb);
       reader.on('end', function () {
+        assert(callbackCalled);
         done();
       });
       reader.on('error', function (e) {
@@ -243,7 +228,7 @@ describe('Git blob streams', function () {
         hashCalled = true;
       };
       var output = fs.createWriteStream(tree);
-      var input = gbs.treeWriter(testTree, { hashFormat: 'hex', hashCallback: hashFunc });
+      var input = gbs.treeWriter(testTree, hashFunc);
       input.pipe(output);
       output.on('close', function () {
         assert(hashCalled);
@@ -261,8 +246,29 @@ describe('Git blob streams', function () {
       var input = fs.createReadStream(tree);
       var output = input.pipe(gbs.treeReader());
       output.on('data', function (data) {
-        assert(typeof data === 'object');
+        assert.equal(typeof data, 'object');
         assert.deepEqual(data, testTree);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+  });
+
+  describe('treeReader', function () {
+    it('should correctly read a tree blob with callback', function (done) {
+      var input = fs.createReadStream(tree);
+      var callbackCalled = false;
+      var readerCallback = function (data) {
+        callbackCalled = true;
+        assert.equal(typeof data, 'object');
+        assert.deepEqual(data, testTree);
+      };
+      var output = input.pipe(gbs.treeReader(readerCallback));
+      output.on('end', function (data) {
+        assert(callbackCalled);
         done();
       });
       output.on('error', function (e) {
@@ -280,7 +286,7 @@ describe('Git blob streams', function () {
         hashCalled = true;
       };
       var output = fs.createWriteStream(commit);
-      var input = gbs.commitWriter(testCommit, { hashFormat: 'hex', hashCallback: hashFunc });
+      var input = gbs.commitWriter(testCommit, hashFunc);
       input.pipe(output);
       output.on('close', function () {
         assert(hashCalled);
@@ -298,8 +304,29 @@ describe('Git blob streams', function () {
       var input = fs.createReadStream(commit);
       var output = input.pipe(gbs.commitReader());
       output.on('data', function (data) {
-        assert(typeof data === 'object');
+        assert.equal(typeof data, 'object');
         assert.deepEqual(data, testCommit);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+  });
+
+  describe('commitReader', function () {
+    it('should correctly read a commit blob with callback', function (done) {
+      var input = fs.createReadStream(commit);
+      var callbackCalled = false;
+      var readerCallback = function (data) {
+        callbackCalled = true;
+        assert.equal(typeof data, 'object');
+        assert.deepEqual(data, testCommit);
+      };
+      var output = input.pipe(gbs.commitReader(readerCallback));
+      output.on('end', function (data) {
+        assert(callbackCalled);
         done();
       });
       output.on('error', function (e) {
@@ -317,7 +344,7 @@ describe('Git blob streams', function () {
         hashCalled = true;
       };
       var output = fs.createWriteStream(tag);
-      var input = gbs.tagWriter(testTag, { hashFormat: 'hex', hashCallback: hashFunc });
+      var input = gbs.tagWriter(testTag, hashFunc);
       input.pipe(output);
       output.on('close', function () {
         assert(hashCalled);
@@ -335,8 +362,29 @@ describe('Git blob streams', function () {
       var input = fs.createReadStream(tag);
       var output = input.pipe(gbs.tagReader());
       output.on('data', function (data) {
-        assert(typeof data === 'object');
+        assert.equal(typeof data, 'object');
         assert.deepEqual(data, testTag);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+  });
+
+  describe('tagReader', function () {
+    it('should correctly read a tag blob with callback', function (done) {
+      var input = fs.createReadStream(tag);
+      var callbackCalled = false;
+      var readerCallback = function (data) {
+        callbackCalled = true;
+        assert.equal(typeof data, 'object');
+        assert.deepEqual(data, testTag);
+      };
+      var output = input.pipe(gbs.tagReader(readerCallback));
+      output.on('end', function (data) {
+        assert(callbackCalled);
         done();
       });
       output.on('error', function (e) {
