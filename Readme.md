@@ -26,7 +26,7 @@ var gbs = require('git-blob-stream');
 var input = fs.createReadStream("filename.blob");
 var output = fs.createWriteStream("filename");
 
-var headerFunc = function (ret) {
+var headerFunc = function (err, ret) {
   // ret is an object:
   // { size: <blobDataLength>, type: <blobType> }
 };
@@ -53,7 +53,7 @@ var gbs = require('git-blob-stream');
 var input = fs.createReadStream("filename");
 var output = fs.createWriteStream("filename.blob");
 
-var hashFunc = function (ret) {
+var hashFunc = function (err, ret) {
   // ret is an object:
   // { size: <blobDataLength>, hash: <hashValue> }
   // hashValue is a hex string of the 20 byte SHA1 sum
@@ -85,19 +85,26 @@ In addition to blobs, this package can also stream to/from [js-git](https://gith
 var fs = require('fs');
 var gbs = require('git-blob-stream');
 var input = fs.createReadStream("tree.blob");
-var xformStream = gbs.treeReader();
+
+var callback = function (err, ret) {
+  // ret is a tree object
+}
+
+var xformStream = gbs.treeReader(callback); // callback is optional
 
 // Decode the file...
 output = input.pipe(xformStream);
 
-output.on('data', function (data) {
-  // data is a tree object
-  // This will only be called once
-});
-
-output.on('end', function () {
-  // All done
-});
+// If a callback is not provided to treeReader, then it writes its output
+// as an object to the stream output
+// output.on('data', function (data) {
+//   // data is a tree object
+//   // This will only be called once
+// });
+//
+// output.on('end', function () {
+//   // All done
+// });
 ```
 
 ##### To write a tree blob file:

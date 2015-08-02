@@ -93,7 +93,7 @@ var blobWriter = function (options, callback) {
       }
       var hash = sha1.digest('hex');
       if (callback)
-        callback({hash: hash, size: dataLength});
+        callback(null, {hash: hash, size: dataLength});
       cb();
     }
   );
@@ -132,7 +132,7 @@ var blobReader = function (options, callback) {
             var headerObj = {
               type: headerStr.slice(0, spaceIdx),
               size: parseInt(headerStr.slice(spaceIdx+1))};
-            callback(headerObj);
+            callback(null, headerObj);
           } else {
             headerChunks.push(chunk);
           }
@@ -252,7 +252,7 @@ function genericReader(parser, callback) {
     function (cb) {
       var output = parser(Buffer.concat(chunkList));
       if (callback) {
-        callback(output);
+        callback(null, output);
       } else {
         this.push(output);
       }

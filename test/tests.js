@@ -93,7 +93,8 @@ describe('Git blob streams', function () {
   });
   it('should pass data through a pipeline correctly', function (done) {
     var hashCalled = false;
-    var sha1Cb = function (ret) {
+    var sha1Cb = function (err, ret) {
+      if (err) throw err;
       hashCalled = true;
       assert.equal(ret.hash.toString('hex'), blobHash);
       assert.equal(ret.size, testBlob.length);
@@ -119,7 +120,8 @@ describe('Git blob streams', function () {
   describe('blobWriter', function () {
     it('should work as a file encoder', function (done) {
       var hashCalled = false;
-      var sha1Cb = function (ret) {
+      var sha1Cb = function (err, ret) {
+        if (err) throw err;
         hashCalled = true;
         assert.equal(ret.hash.toString('hex'), ipsumHash);
         assert.equal(ret.size, ipsumLength);
@@ -140,7 +142,8 @@ describe('Git blob streams', function () {
 
     it('should work as a file encoder without size option', function (done) {
       var hashCalled = false;
-      var sha1Cb = function (ret) {
+      var sha1Cb = function (err, ret) {
+        if (err) throw err;
         hashCalled = true;
         assert.equal(ret.hash.toString('hex'), ipsumHash);
         assert.equal(ret.size, ipsumLength);
@@ -162,7 +165,8 @@ describe('Git blob streams', function () {
     it('should work as a hex string hash calculator', function (done) {
       var callbackCalled = false;
       var input = fs.createReadStream(ipsum);
-      var sha1Cb = function (ret) {
+      var sha1Cb = function (err, ret) {
+        if (err) throw err;
         callbackCalled = true;
         assert.equal(ret.hash, ipsumHash);
         assert.equal(ret.size, ipsumLength);
@@ -201,7 +205,8 @@ describe('Git blob streams', function () {
 
     it('should work as a header decoder', function (done) {
       var callbackCalled = false;
-      headerCb = function (ret) {
+      headerCb = function (err, ret) {
+        if (err) throw err;
         callbackCalled = true;
         assert.equal(ret.type, 'blob');
         assert.equal(ret.size, ipsumLength);
@@ -223,7 +228,8 @@ describe('Git blob streams', function () {
   describe('treeWriter', function () {
     it('should correctly write a tree blob', function (done) {
       var hashCalled = false;
-      var hashFunc = function (ret) {
+      var hashFunc = function (err, ret) {
+        if (err) throw err;
         assert.equal(ret.hash, treeHash);
         hashCalled = true;
       };
@@ -261,7 +267,8 @@ describe('Git blob streams', function () {
     it('should correctly read a tree blob with callback', function (done) {
       var input = fs.createReadStream(tree);
       var callbackCalled = false;
-      var readerCallback = function (data) {
+      var readerCallback = function (err, data) {
+        if (err) throw err;
         callbackCalled = true;
         assert.equal(typeof data, 'object');
         assert.deepEqual(data, testTree);
@@ -281,7 +288,8 @@ describe('Git blob streams', function () {
   describe('commitWriter', function () {
     it('should correctly write a commit blob', function (done) {
       var hashCalled = false;
-      var hashFunc = function (ret) {
+      var hashFunc = function (err, ret) {
+        if (err) throw err;
         assert.equal(ret.hash, commitHash);
         hashCalled = true;
       };
@@ -319,7 +327,8 @@ describe('Git blob streams', function () {
     it('should correctly read a commit blob with callback', function (done) {
       var input = fs.createReadStream(commit);
       var callbackCalled = false;
-      var readerCallback = function (data) {
+      var readerCallback = function (err, data) {
+        if (err) throw err;
         callbackCalled = true;
         assert.equal(typeof data, 'object');
         assert.deepEqual(data, testCommit);
@@ -339,7 +348,8 @@ describe('Git blob streams', function () {
   describe('tagWriter', function () {
     it('should correctly write a tag blob', function (done) {
       var hashCalled = false;
-      var hashFunc = function (ret) {
+      var hashFunc = function (err, ret) {
+        if (err) throw err;
         assert.equal(ret.hash, tagHash);
         hashCalled = true;
       };
@@ -377,7 +387,8 @@ describe('Git blob streams', function () {
     it('should correctly read a tag blob with callback', function (done) {
       var input = fs.createReadStream(tag);
       var callbackCalled = false;
-      var readerCallback = function (data) {
+      var readerCallback = function (err, data) {
+        if (err) throw err;
         callbackCalled = true;
         assert.equal(typeof data, 'object');
         assert.deepEqual(data, testTag);
