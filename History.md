@@ -1,3 +1,7 @@
+##### 0.0.11
+
+* Fixed bug in *Writer calls when `noOutput: true`
+
 ##### 0.0.10
 
 * All callbacks now follow standard node signature `function (err, result) {}`

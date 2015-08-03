@@ -221,7 +221,7 @@ var treeWriter = function (body, options, callback) {
   var buff = Buffer.concat(treeBuffers, tbSize);
   options.size = tbSize;
   options.type = 'tree';
-  return streamifier.createReadStream(buff).pipe(blobWriter(options));
+  return streamifier.createReadStream(buff).pipe(blobWriter(options, callback));
 };
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -359,7 +359,7 @@ var tagWriter = function (body, options, callback) {
     var buff = new Buffer(str);
     options.size = buff.length;
     options.type = 'tag';
-    return streamifier.createReadStream(buff).pipe(blobWriter(options));
+    return streamifier.createReadStream(buff).pipe(blobWriter(options, callback));
 };
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -382,7 +382,7 @@ var commitWriter = function (body, options, callback) {
   var buff = new Buffer(str);
   options.size = buff.length;
   options.type = 'commit';
-  return streamifier.createReadStream(buff).pipe(blobWriter(options));
+  return streamifier.createReadStream(buff).pipe(blobWriter(options, callback));
 };
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js

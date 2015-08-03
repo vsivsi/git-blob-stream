@@ -245,6 +245,23 @@ describe('Git blob streams', function () {
         assert(false);
       });
     });
+    it('should correctly calculate tree blob hash without output', function (done) {
+      var hashCalled = false;
+      var hashFunc = function (err, ret) {
+        if (err) throw err;
+        assert.equal(ret.hash, treeHash);
+        hashCalled = true;
+      };
+      var input = gbs.treeWriter(testTree, {noOutput: true}, hashFunc);
+      input.on('end', function () {
+        assert(hashCalled);
+        done();
+      });
+      input.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
   });
 
   describe('treeReader', function () {
@@ -261,9 +278,7 @@ describe('Git blob streams', function () {
         assert(false);
       });
     });
-  });
 
-  describe('treeReader', function () {
     it('should correctly read a tree blob with callback', function (done) {
       var input = fs.createReadStream(tree);
       var callbackCalled = false;
@@ -305,6 +320,23 @@ describe('Git blob streams', function () {
         assert(false);
       });
     });
+    it('should correctly calculate a commit blob hash without output', function (done) {
+      var hashCalled = false;
+      var hashFunc = function (err, ret) {
+        if (err) throw err;
+        assert.equal(ret.hash, commitHash);
+        hashCalled = true;
+      };
+      var input = gbs.commitWriter(testCommit, {noOutput: true}, hashFunc);
+      input.on('end', function () {
+        assert(hashCalled);
+        done();
+      });
+      input.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
   });
 
   describe('commitReader', function () {
@@ -321,9 +353,7 @@ describe('Git blob streams', function () {
         assert(false);
       });
     });
-  });
 
-  describe('commitReader', function () {
     it('should correctly read a commit blob with callback', function (done) {
       var input = fs.createReadStream(commit);
       var callbackCalled = false;
@@ -365,6 +395,24 @@ describe('Git blob streams', function () {
         assert(false);
       });
     });
+
+    it('should correctly calculate tag blob hash without output', function (done) {
+      var hashCalled = false;
+      var hashFunc = function (err, ret) {
+        if (err) throw err;
+        assert.equal(ret.hash, tagHash);
+        hashCalled = true;
+      };
+      var input = gbs.tagWriter(testTag, {noOutput: true}, hashFunc);
+      input.on('end', function () {
+        assert(hashCalled);
+        done();
+      });
+      input.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
   });
 
   describe('tagReader', function () {
@@ -381,9 +429,7 @@ describe('Git blob streams', function () {
         assert(false);
       });
     });
-  });
 
-  describe('tagReader', function () {
     it('should correctly read a tag blob with callback', function (done) {
       var input = fs.createReadStream(tag);
       var callbackCalled = false;
