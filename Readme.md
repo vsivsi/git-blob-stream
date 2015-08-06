@@ -119,7 +119,7 @@ var hashFunc = function (ret) {
   // ret is an object:
   // { size: <blobDataLength>, hash: <hashValue>, tree: <normalizedTreeObj>}
   // hashValue is a hex string of the 20 byte SHA1 sum
-  // normalizedTreeObj is the actual tree object that was written after it was
+  // normalizedTreeObj is the actual tree object that would be read back, as
   // normalized to git standard form (canonical sorting, missing fields added)
 }
 

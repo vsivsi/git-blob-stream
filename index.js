@@ -224,7 +224,7 @@ var treeWriter = function (body, options, callback) {
   options.type = 'tree';
   var writeCb = function (err, data) {
     if (!err) data.tree = body;
-    callback(err, data);
+    if (callback) callback(err, data);
   }
   return streamifier.createReadStream(buff).pipe(blobWriter(options, writeCb));
 };
@@ -366,7 +366,7 @@ var tagWriter = function (body, options, callback) {
     options.type = 'tag';
     var writeCb = function (err, data) {
       if (!err) data.tag = body;
-      callback(err, data);
+      if (callback) callback(err, data);
     };
     return streamifier.createReadStream(buff).pipe(blobWriter(options, writeCb));
 };
@@ -393,7 +393,7 @@ var commitWriter = function (body, options, callback) {
   options.type = 'commit';
   var writeCb = function (err, data) {
     if (!err) data.commit = body;
-    callback(err, data);
+    if (callback) callback(err, data);
   };
   return streamifier.createReadStream(buff).pipe(blobWriter(options, writeCb));
 };

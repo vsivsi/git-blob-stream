@@ -1,7 +1,11 @@
+##### 0.0.13
+
+* Fixed bug introduced in prior version that caused a throw when no callback was provided.
+
 ##### 0.0.12
 
 * \*Writer calls now return the "normalized" object that was written (or would have been, in `noOutput` mode) to the callback. The attribute is named for each call `ret.tree`, `ret.commit`, `ret.tag`. Blob writer doesn't change because it does no normalization.
-* Fixed a bug where 2nd parameter callbacks in Tree/Commit/Tag functions could overwrite new callbacks set within the functions themselves when blobReader/Writer were called.  
+* Fixed subtle a bug where 2nd parameter callbacks in Tree/Commit/Tag functions could overwrite new callbacks set within the functions themselves when blobReader/Writer were called.  
 
 ##### 0.0.11
 

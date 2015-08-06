@@ -3,7 +3,7 @@
   "name": "git-blob-stream",
   "description": "Node.js Transform streams to convert data to or from git blobs",
   "main": "index.js",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "keywords": [
     "git",
     "blob",
