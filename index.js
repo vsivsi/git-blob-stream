@@ -178,12 +178,12 @@ var gitModes = {
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
 // MIT Licensed
-function treeMap(key) {
+var treeMap = function (key) {
   var entry = this[key];
   return {
     name: key,
     mode: entry.mode,
-    hash: entry.hash
+    hash: normalizeHash(entry.hash)
   };
 }
 
@@ -193,6 +193,20 @@ function treeSort(a, b) {
   var aa = (a.mode === gitModes.tree) ? a.name + "/" : a.name;
   var bb = (b.mode === gitModes.tree) ? b.name + "/" : b.name;
   return aa > bb ? 1 : aa < bb ? -1 : 0;
+}
+
+function treeArrayToObj(body) {
+  if (!Array.isArray(body)) throw new TypeError("Tree must be in array form");
+  var tree = {};
+  var i, l, entry;
+  for (i = 0, l = body.length; i < l; i++) {
+    entry = body[i];
+    tree[entry.name] = {
+      mode: entry.mode,
+      hash: entry.hash
+    };
+  }
+  return tree;
 }
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -207,23 +221,26 @@ var treeWriter = function (body, options, callback) {
   }
   var treeBuffers = [];
   var tbSize = 0;
-  if (Array.isArray(body)) throw new TypeError("Tree must be in object form");
-  var list = Object.keys(body).map(treeMap, body).sort(treeSort);
-  for (var i = 0, l = list.length; i < l; i++) {
-    var entry = list[i];
-    if (typeof entry.hash === 'string') {
-      entry.hash = new Buffer(entry.hash, 'hex');
-    }
+  if (!Array.isArray(body)) throw new TypeError("Tree must be in array form");
+  for (var i = 0, l = body.length; i < l; i++) {
+    var entry = body[i];
+    if (typeof entry.hash !== 'string' || entry.hash.length !== 40)
+      throw new TypeError("File hash must be a sha1 hex string");
+    var hashBuffer = new Buffer(entry.hash, 'hex');
     var b = new Buffer(entry.mode.toString(8) + " " + entry.name + "\0");
     treeBuffers.push(b);
-    treeBuffers.push(entry.hash);
-    tbSize += b.length + entry.hash.length;
+    treeBuffers.push(hashBuffer);
+    tbSize += b.length + hashBuffer.length;
   }
   var buff = Buffer.concat(treeBuffers, tbSize);
   options.size = tbSize;
   options.type = 'tree';
   var writeCb = function (err, data) {
-    if (!err) data.tree = body;
+    if (!err)
+      if (options.arrayTree)
+        data.tree = body;
+      else
+        data.tree = treeArrayToObj(body);
     if (callback) callback(err, data);
   }
   return streamifier.createReadStream(buff).pipe(blobWriter(options, writeCb));
@@ -240,9 +257,11 @@ function indexOf(buffer, byte, i) {
   }
 }
 
-function genericReader(parser, callback) {
+function genericReader(parser, options, callback) {
   if (typeof parser !== 'function')
     throw new Error('Invalid parser function passed to genericReader');
+  options = optionChecker(options);
+  if (options.cb) callback = options.cb;
   if (callback && (typeof callback !== 'function'))
     throw new Error('Invalid callback function passed to genericReader');
   var input = blobReader();
@@ -255,7 +274,7 @@ function genericReader(parser, callback) {
       cb();
     },
     function (cb) {
-      var output = parser(Buffer.concat(chunkList));
+      var output = parser(Buffer.concat(chunkList), options);
       if (callback) {
         callback(null, output);
       } else {
@@ -275,14 +294,14 @@ function genericReader(parser, callback) {
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
 // MIT Licensed
-function treeParser(body) {
+function treeParser(body, options) {
   var i = 0;
   var length = body.length;
   var start;
   var mode;
   var name;
   var hash;
-  var tree = {};
+  var tree = [];
   while (i < length) {
     start = i;
     i = indexOf(body, 0x20, start);
@@ -292,18 +311,25 @@ function treeParser(body) {
     i = indexOf(body, 0x00, start);
     name = body.slice(start, i++).toString();
     hash = body.slice(i, i += 20).toString('hex');
-    tree[name] = {
+    tree.push({
+      name: name,
       mode: mode,
       hash: hash
-    };
+    });
   }
-  return tree;
+  if (options.arrayTree)
+    return tree;
+  else
+    return treeArrayToObj(tree);
 }
 
-treeReader = function (callback) {
+treeReader = function (options, callback) {
+  options = optionChecker(options);
+  if (options.cb) callback = options.cb;
   if (callback && (typeof callback !== 'function'))
     throw new Error('Invalid callback function passed to treeReader');
-  return genericReader(treeParser, callback);
+  var readCb;
+  return genericReader(treeParser, options, callback);
 };
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -451,7 +477,9 @@ function commitParser(body) {
   return commit;
 }
 
-commitReader = function (callback) {
+commitReader = function (options, callback) {
+  options = optionChecker(options);
+  if (options.cb) callback = options.cb;
   if (callback && (typeof callback !== 'function'))
     throw new Error('Invalid callback function passed to commitReader');
   return genericReader(commitParser, callback);
@@ -481,41 +509,30 @@ function tagParser(body) {
   return tag;
 }
 
-tagReader = function (callback) {
+tagReader = function (options, callback) {
+  options = optionChecker(options);
+  if (options.cb) callback = options.cb;
   if (callback && (typeof callback !== 'function'))
     throw new Error('Invalid callback function passed to tagReader');
   return genericReader(tagParser, callback);
 };
 
-// Lifted from: https://github.com/creationix/js-git/blob/master/mixins/formats.js
+// Adapted from: https://github.com/creationix/js-git/blob/master/mixins/formats.js
 // MIT Licensed
 function normalizeTree(body) {
   var type = body && typeof body;
   if (type !== "object") {
     throw new TypeError("Tree body must be array or object");
   }
-  var tree = {}, i, l, entry;
-  // If array form is passed in, convert to object form.
-  if (Array.isArray(body)) {
-    for (i = 0, l = body.length; i < l; i++) {
-      entry = body[i];
-      tree[entry.name] = {
-        mode: entry.mode,
-        hash: entry.hash
-      };
-    }
-  }
-  else {
-    var names = Object.keys(body);
-    for (i = 0, l = names.length; i < l; i++) {
-      var name = names[i];
-      entry = body[name];
-      tree[name] = {
-        mode: entry.mode,
-        hash: entry.hash
-      };
-    }
-  }
+  var tree, i, l, entry;
+  // If object form is passed in, convert to Array form.
+  if (!Array.isArray(body))
+    tree = Object.keys(body).map(treeMap, body).sort(treeSort);
+  else
+    tree = body.sort(treeSort).map(function (entry) {
+      entry.hash = normalizeHash(entry.hash);
+      return entry;
+    });
   return tree;
 }
 
@@ -532,6 +549,7 @@ function normalizeCommit(body) {
   if (!Array.isArray(parents)) {
     throw new TypeError("Parents must be an array");
   }
+  parents = parents.map(normalizeHash);
   var author = normalizePerson(body.author);
   var committer = body.committer ? normalizePerson(body.committer) : author;
   return {
@@ -552,6 +570,7 @@ function normalizeTag(body) {
   if (!(body.object && body.type && body.tag && body.tagger && body.message)) {
     throw new TypeError("Object, type, tag, tagger, and message required");
   }
+  body.object = normalizeHash(body.object);
   return {
     object: body.object,
     type: body.type,
@@ -577,7 +596,15 @@ function normalizePerson(person) {
   };
 }
 
+function normalizeHash(hash) {
+  if (Buffer.isBuffer(hash)) {
+    hash = hash.toString('hex');
+  }
+  return hash;
+}
+
 module.exports = exports = {
+  _treeMap: treeMap,  // For unit testing
   blobWriter: blobWriter,
   blobReader: blobReader,
   treeWriter: treeWriter,

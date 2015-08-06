@@ -67,6 +67,7 @@ describe('Git blob streams', function () {
         if (err) throw err;
         commitHash = hash;
         testTree = tree;
+        testTreeArray = Object.keys(tree).map(gbs._treeMap, tree)
         // console.dir(testTree);
         testTag.object = commitHash;
         repo.saveAs("tag", testTag, this.parallel());
@@ -246,6 +247,7 @@ describe('Git blob streams', function () {
         assert(false);
       });
     });
+
     it('should correctly calculate tree blob hash without output', function (done) {
       var hashCalled = false;
       var hashFunc = function (err, ret) {
@@ -254,7 +256,7 @@ describe('Git blob streams', function () {
         assert.deepEqual(ret.tree, testTree);
         hashCalled = true;
       };
-      var input = gbs.treeWriter(testTree, {noOutput: true}, hashFunc);
+      var input = gbs.treeWriter(testTree, { noOutput: true}, hashFunc);
       input.on('end', function () {
         assert(hashCalled);
         done();
@@ -264,9 +266,51 @@ describe('Git blob streams', function () {
         assert(false);
       });
     });
+
+    it('should correctly write a tree blob from array', function (done) {
+      var hashCalled = false;
+      var hashFunc = function (err, ret) {
+        if (err) throw err;
+        assert.equal(ret.hash, treeHash);
+        assert.deepEqual(ret.tree, testTreeArray);
+        hashCalled = true;
+      };
+      var output = fs.createWriteStream(tree);
+      var input = gbs.treeWriter(testTreeArray, { arrayTree: true }, hashFunc);
+      input.pipe(output);
+      output.on('close', function () {
+        assert(hashCalled);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+
+    it('should correctly calculate tree blob hash from array without output', function (done) {
+      var hashCalled = false;
+      var hashFunc = function (err, ret) {
+        if (err) throw err;
+        assert.equal(ret.hash, treeHash);
+        assert.deepEqual(ret.tree, testTreeArray);
+        hashCalled = true;
+      };
+      var input = gbs.treeWriter(testTreeArray, {arrayTree: true, noOutput: true}, hashFunc);
+      input.on('end', function () {
+        assert(hashCalled);
+        done();
+      });
+      input.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+
   });
 
   describe('treeReader', function () {
+
     it('should correctly read a tree blob', function (done) {
       var input = fs.createReadStream(tree);
       var output = input.pipe(gbs.treeReader());
@@ -291,6 +335,40 @@ describe('Git blob streams', function () {
         assert.deepEqual(data, testTree);
       };
       var output = input.pipe(gbs.treeReader(readerCallback));
+      output.on('end', function (data) {
+        assert(callbackCalled);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+
+    it('should correctly read a tree blob as array', function (done) {
+      var input = fs.createReadStream(tree);
+      var output = input.pipe(gbs.treeReader({ arrayTree: true }));
+      output.on('data', function (data) {
+        assert.equal(typeof data, 'object');
+        assert.deepEqual(data, testTreeArray);
+        done();
+      });
+      output.on('error', function (e) {
+        console.warn("Error in pipeline", e);
+        assert(false);
+      });
+    });
+
+    it('should correctly read a tree blob as array with callback', function (done) {
+      var input = fs.createReadStream(tree);
+      var callbackCalled = false;
+      var readerCallback = function (err, data) {
+        if (err) throw err;
+        callbackCalled = true;
+        assert.equal(typeof data, 'object');
+        assert.deepEqual(data, testTreeArray);
+      };
+      var output = input.pipe(gbs.treeReader({ arrayTree: true }, readerCallback));
       output.on('end', function (data) {
         assert(callbackCalled);
         done();

@@ -1,3 +1,9 @@
+##### 0.0.14
+
+* Added `arrayTree` option to `treeWriter()` which when truthy causes the callback to return the written tree as an array of the form: `[{ name:<fileName>, mode:<fileMode>, hash:<sha1Hash>}, ...]` rather than the object form: `{ <fileName>: {mode:<fileMode>, hash:<sha1Hash>}, ...}`
+* Added `arrayTree` option to `treeReader` implementing the same behavior described above.
+* Internally all git trees are now used in the array form. The default for input/output remains the js-git object form, but arrays may be used as inputs are available for output using the `arrayTree` options above.
+
 ##### 0.0.13
 
 * Fixed bug introduced in prior version that caused a throw when no callback was provided.
