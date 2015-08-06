@@ -231,6 +231,7 @@ describe('Git blob streams', function () {
       var hashFunc = function (err, ret) {
         if (err) throw err;
         assert.equal(ret.hash, treeHash);
+        assert.deepEqual(ret.tree, testTree);
         hashCalled = true;
       };
       var output = fs.createWriteStream(tree);
@@ -250,6 +251,7 @@ describe('Git blob streams', function () {
       var hashFunc = function (err, ret) {
         if (err) throw err;
         assert.equal(ret.hash, treeHash);
+        assert.deepEqual(ret.tree, testTree);
         hashCalled = true;
       };
       var input = gbs.treeWriter(testTree, {noOutput: true}, hashFunc);
@@ -306,6 +308,7 @@ describe('Git blob streams', function () {
       var hashFunc = function (err, ret) {
         if (err) throw err;
         assert.equal(ret.hash, commitHash);
+        assert.deepEqual(ret.commit, testCommit);
         hashCalled = true;
       };
       var output = fs.createWriteStream(commit);
@@ -381,6 +384,7 @@ describe('Git blob streams', function () {
       var hashFunc = function (err, ret) {
         if (err) throw err;
         assert.equal(ret.hash, tagHash);
+        assert.deepEqual(ret.tag, testTag);
         hashCalled = true;
       };
       var output = fs.createWriteStream(tag);

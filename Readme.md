@@ -117,8 +117,10 @@ var output = fs.createWriteStream("tree.blob");
 
 var hashFunc = function (ret) {
   // ret is an object:
-  // { size: <blobDataLength>, hash: <hashValue> }
+  // { size: <blobDataLength>, hash: <hashValue>, tree: <normalizedTreeObj>}
   // hashValue is a hex string of the 20 byte SHA1 sum
+  // normalizedTreeObj is the actual tree object that was written after it was
+  // normalized to git standard form (canonical sorting, missing fields added)
 }
 
 // All options are manditory!

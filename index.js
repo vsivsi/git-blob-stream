@@ -21,12 +21,12 @@ function optionChecker (options) {
   if (options) {
     if (typeof options === 'function')
       options = { cb: options };
-    if (typeof options !== 'object') {
+    else
+      options.cb = undefined;
+    if (typeof options !== 'object')
       throw new Error('Bad options object passed');
-    }
-  } else {
+  } else
     options = {};
-  }
   return options;
 }
 
@@ -92,8 +92,9 @@ var blobWriter = function (options, callback) {
         if (!options.noOutput) this.push(outputBuffer);
       }
       var hash = sha1.digest('hex');
-      if (callback)
+      if (callback) {
         callback(null, {hash: hash, size: dataLength});
+      }
       cb();
     }
   );
@@ -221,7 +222,11 @@ var treeWriter = function (body, options, callback) {
   var buff = Buffer.concat(treeBuffers, tbSize);
   options.size = tbSize;
   options.type = 'tree';
-  return streamifier.createReadStream(buff).pipe(blobWriter(options, callback));
+  var writeCb = function (err, data) {
+    if (!err) data.tree = body;
+    callback(err, data);
+  }
+  return streamifier.createReadStream(buff).pipe(blobWriter(options, writeCb));
 };
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -359,7 +364,11 @@ var tagWriter = function (body, options, callback) {
     var buff = new Buffer(str);
     options.size = buff.length;
     options.type = 'tag';
-    return streamifier.createReadStream(buff).pipe(blobWriter(options, callback));
+    var writeCb = function (err, data) {
+      if (!err) data.tag = body;
+      callback(err, data);
+    };
+    return streamifier.createReadStream(buff).pipe(blobWriter(options, writeCb));
 };
 
 // Adapted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js
@@ -382,7 +391,11 @@ var commitWriter = function (body, options, callback) {
   var buff = new Buffer(str);
   options.size = buff.length;
   options.type = 'commit';
-  return streamifier.createReadStream(buff).pipe(blobWriter(options, callback));
+  var writeCb = function (err, data) {
+    if (!err) data.commit = body;
+    callback(err, data);
+  };
+  return streamifier.createReadStream(buff).pipe(blobWriter(options, writeCb));
 };
 
 // Lifted from: https://github.com/creationix/js-git/blob/master/lib/object-codec.js

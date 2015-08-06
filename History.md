@@ -1,6 +1,11 @@
+##### 0.0.12
+
+* \*Writer calls now return the "normalized" object that was written (or would have been, in `noOutput` mode) to the callback. The attribute is named for each call `ret.tree`, `ret.commit`, `ret.tag`. Blob writer doesn't change because it does no normalization.
+* Fixed a bug where 2nd parameter callbacks in Tree/Commit/Tag functions could overwrite new callbacks set within the functions themselves when blobReader/Writer were called.  
+
 ##### 0.0.11
 
-* Fixed bug in *Writer calls when `noOutput: true`
+* Fixed bug in \*Writer calls when `noOutput: true`
 
 ##### 0.0.10
 
@@ -8,12 +13,12 @@
 
 ##### 0.0.9
 
-* `hashCallback` option has been eliminated from all *Writer calls, in favor of an optional callback as the last parameter.
+* `hashCallback` option has been eliminated from all \*Writer calls, in favor of an optional callback as the last parameter.
 * `blobReader` also now accepts an optional callback as the last parameter for returning header information.
-* Both `blobReader` and the *Writer calls no longer output objects under any circumstances.
+* Both `blobReader` and the \*Writer calls no longer output objects under any circumstances.
 * `treeReader`, `commitReader` and `tagReader` now accept an optional callback. If provided, the callback is called with the output. If no callback is provided, then the output can be read from the stream as an object as before.
-* `noOutput` option has been added to all *Writer calls as well as `blobReader` to allow for "callback only" operation.
-* The *Writer calls no longer have a `hashFormat` option. All hashes are now returned to the callback in `'hex'` format.
+* `noOutput` option has been added to all \*Writer calls as well as `blobReader` to allow for "callback only" operation.
+* The \*Writer calls no longer have a `hashFormat` option. All hashes are now returned to the callback in `'hex'` format.
 
 ##### 0.0.8
 
